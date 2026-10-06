@@ -39,7 +39,49 @@ export interface GenerateInput {
   /** créditos no rodapé */
   credits?: { name: string; url?: string };
   formMode?: 'netlify' | 'whatsapp' | 'mailto' | 'none';
-  seed?: string;
+  seed?: string | number;
+  /** V2 — composer adaptativo: blueprints explícitos (substituem o arquétipo fixo) */
+  blueprints?: Blueprint[];
+  themeOverrides?: SiteConfig['theme']['overrides'];
+  motionProfile?: SiteConfig['animations']['profile'];
+  hero?: {
+    headline?: string;
+    subheadline?: string;
+    eyebrow?: string;
+    primaryCta?: string;
+    secondaryCta?: string;
+    image?: ImageRef;
+    images?: ImageRef[];
+    /** src = MP4 (ou único formato); webm = variante WebM preferida pelo navegador, com fallback no src */
+    video?: { src: string; webm?: string; poster?: string; duration?: number };
+    services?: string[];
+  };
+  finalCta?: { title: string; text: string };
+  locations?: SiteConfig['business']['locations'];
+  /**
+   * Modo "só fatos" (V2): nenhuma copy da biblioteca que alegue algo específico (garantia, anos, equipe,
+   * equipamentos, números, depoimentos, diferenciais). Seções sem dados reais são omitidas.
+   */
+  factsOnly?: boolean;
+  /** Conteúdo construído a partir de fatos verificados (usado com factsOnly) */
+  content?: {
+    tagline?: string;
+    seoDescription?: string;
+    keywords?: string[];
+    about?: {
+      eyebrow?: string;
+      title?: string;
+      paragraphs: string[];
+      highlights?: { title: string; text?: string }[];
+    };
+    faqs?: { question: string; answer: string }[];
+    steps?: { title: string; description: string }[];
+    marquee?: string[];
+    benefits?: { title: string; description: string }[];
+    servicesHead?: { eyebrow?: string; title?: string; intro?: string };
+    contactIntro?: string;
+    galleryTitle?: string;
+  };
 }
 
 export interface GenerateResult {
@@ -77,60 +119,81 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       estado: input.state,
       anos: input.yearsExperience || undefined,
     },
-    input.seed ?? `${input.name}|${variant}`,
+    input.seed !== undefined ? String(input.seed) : `${input.name}|${variant}`,
   );
   const photos = input.photos ?? [];
   let photoIdx = 0;
   const nextPhoto = (): ImageRef | undefined =>
     photos.length ? photos[photoIdx++ % photos.length] : undefined;
 
+  const facts = !!input.factsOnly;
+  const content = input.content ?? {};
   const services = (
     input.services?.length
       ? input.services.map((s, i) => ({
           title: s.title,
-          description: s.description ?? copy.services[i % copy.services.length]?.description ?? '',
+          // só fatos: descrição vazia em vez de copy genérica que alega coisas
+          description:
+            s.description ?? (facts ? '' : (copy.services[i % copy.services.length]?.description ?? '')),
           icon: copy.services[i % copy.services.length]?.icon,
         }))
-      : pick.list(copy.services)
-  ).slice(0, 6);
+      : facts
+        ? []
+        : pick.list(copy.services)
+  ).slice(0, 8);
   const differentials = input.differentials?.length ? input.differentials : [];
-  const benefits = differentials.length
-    ? differentials.map((d, i) => ({
-        title: d,
-        description: copy.benefits[i % copy.benefits.length]?.description ?? '',
+  const benefits = facts
+    ? (content.benefits ?? differentials.map((d) => ({ title: d, description: '' }))).map((b, i) => ({
+        ...b,
         icon: copy.benefits[i % copy.benefits.length]?.icon,
       }))
-    : pick.list(copy.benefits);
-  const stats = pick.list(copy.stats).slice(0, 4);
-  const testimonials = pick.list(copy.testimonials);
-  const faqs = pick.list(copy.faqs);
-  const steps = pick.list(copy.steps);
-  const projects = pick.list(copy.projects).map((p) => ({ ...p, image: nextPhoto() }));
+    : differentials.length
+      ? differentials.map((d, i) => ({
+          title: d,
+          description: copy.benefits[i % copy.benefits.length]?.description ?? '',
+          icon: copy.benefits[i % copy.benefits.length]?.icon,
+        }))
+      : pick.list(copy.benefits);
+  const stats = facts ? [] : pick.list(copy.stats).slice(0, 4);
+  const testimonials = facts ? [] : pick.list(copy.testimonials);
+  const faqs = facts ? (content.faqs ?? []) : pick.list(copy.faqs);
+  const steps = facts ? (content.steps ?? []) : pick.list(copy.steps);
+  const projects = facts ? [] : pick.list(copy.projects).map((p) => ({ ...p, image: nextPhoto() }));
 
   const whatsappMessage = pick.text(copy.whatsappMessage);
-  const primaryLabel = pick.pick(copy.cta.primary, 1);
-  const secondaryLabel = pick.pick(copy.cta.secondary, 2);
+  // só fatos: rótulos do CTA vêm do DNA (hero.primaryCta), não da biblioteca ("Agendar revisão" etc.)
+  const primaryLabel = (input.factsOnly && input.hero?.primaryCta) || pick.pick(copy.cta.primary, 1);
+  const secondaryLabel = (input.factsOnly && input.hero?.secondaryCta) || pick.pick(copy.cta.secondary, 2);
 
+  const h = input.hero;
+  const heroImage = h?.image ?? nextPhoto();
   const heroProps = {
-    eyebrow: pick.pick(copy.hero.eyebrow, 3),
-    headline: pick.pick(copy.hero.headline, 4),
-    subheadline: pick.pick(copy.hero.sub, 5),
-    primaryCta: { label: primaryLabel },
-    secondaryCta: { label: secondaryLabel, href: '#servicos' },
-    badges: copy.hero.badges.map((b) => pick.text(b)),
+    eyebrow: h?.eyebrow ?? pick.pick(copy.hero.eyebrow, 3),
+    headline: h?.headline ?? pick.pick(copy.hero.headline, 4),
+    subheadline: h?.subheadline ?? pick.pick(copy.hero.sub, 5),
+    primaryCta: { label: h?.primaryCta ?? primaryLabel },
+    secondaryCta: { label: h?.secondaryCta ?? secondaryLabel, href: '#servicos' },
+    badges: facts ? [] : copy.hero.badges.map((b) => pick.text(b)),
     stats:
-      layout === 'impact'
+      layout === 'impact' && !input.blueprints
         ? stats.slice(0, 3).map((s) => ({ value: s.value + (s.suffix ?? ''), label: s.label }))
         : [],
-    image: nextPhoto(),
+    image: heroImage,
+    images: h?.images ?? (heroImage ? [heroImage, ...photos.filter((p) => p !== heroImage).slice(0, 2)] : []),
+    services: h?.services ?? [],
+    videoSrc: h?.video?.src,
+    videoSrcWebm: h?.video?.webm,
+    poster: h?.video?.poster ? { src: h.video.poster, alt: 'Poster do vídeo' } : undefined,
   };
+  const heroStats = stats.slice(0, 3).map((s) => ({ value: s.value + (s.suffix ?? ''), label: s.label }));
 
   const sections: SectionInstance[] = [];
-  for (const bp of LAYOUTS[layout]) {
+  for (const bp of input.blueprints ?? LAYOUTS[layout]) {
     const s = buildSection(bp, {
       copy,
       pick,
       heroProps,
+      heroStats,
       services,
       benefits,
       stats,
@@ -142,27 +205,43 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       primaryLabel,
       credits: input.credits,
       whatsappMessage,
+      finalCta: input.finalCta,
+      locations: input.locations ?? [],
+      facts,
+      content,
     });
     if (s) sections.push(s);
   }
+  const motion = input.motionProfile ?? 'elegant';
+  const motionIntensity: Record<string, 'subtle' | 'normal' | 'bold'> = {
+    minimal: 'subtle',
+    technical: 'subtle',
+    editorial: 'normal',
+    elegant: 'normal',
+    performance: 'bold',
+    playful: 'bold',
+    cinematic: 'bold',
+  };
 
   const hasPhone = !!(input.whatsapp || input.phone);
   const raw = {
     version: 1,
     brand: {
       name: input.name,
-      tagline: pick.pick(copy.manifesto, 6).replace(/\*/g, ''),
+      tagline: facts ? (content.tagline ?? '') : pick.pick(copy.manifesto, 6).replace(/\*/g, ''),
       logo: input.logo ?? null,
     },
-    theme: { id: theme, overrides: {} },
+    theme: { id: theme, overrides: input.themeOverrides ?? {} },
     business: {
       segment,
       city: input.city,
       state: input.state,
       country: input.country ?? 'Brasil',
       yearsExperience: input.yearsExperience,
-      description: input.description || pick.text(copy.about.paragraphs[0][0]),
-      differentials: differentials.length ? differentials : benefits.map((b) => b.title),
+      description:
+        input.description ||
+        (facts ? (content.about?.paragraphs[0] ?? '') : pick.text(copy.about.paragraphs[0][0])),
+      differentials: differentials.length ? differentials : facts ? [] : benefits.map((b) => b.title),
       services,
       products: [],
       testimonials,
@@ -173,6 +252,7 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       projects,
       hours: input.hours ?? [],
       serviceAreas: input.city ? [input.city] : [],
+      locations: input.locations ?? [],
     },
     contact: {
       whatsapp: input.whatsapp ? (normalizeWhatsapp(input.whatsapp) ?? undefined) : undefined,
@@ -185,27 +265,46 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
     },
     seo: {
       lang: 'pt-BR',
-      title:
-        `${input.name}${input.city ? ` · ${input.city}` : ''} — ${pick.pick(copy.hero.eyebrow, 3).replace(/\{cidade\}/g, '')}`
-          .replace(/\s+—\s*$/, '')
-          .trim(),
-      description: pick.pick(copy.seoDescription, 7),
-      keywords: copy.keywords.map((k) => pick.text(k)),
+      title: `${input.name}${input.city ? ` · ${input.city}` : ''} — ${
+        facts ? (h?.eyebrow ?? '') : pick.pick(copy.hero.eyebrow, 3).replace(/\{cidade\}/g, '')
+      }`
+        .replace(/\s+—\s*$/, '')
+        .trim(),
+      description: facts
+        ? (content.seoDescription ?? `${input.name}${input.city ? ` em ${input.city}` : ''}.`)
+        : pick.pick(copy.seoDescription, 7),
+      keywords: facts
+        ? (content.keywords ?? services.map((sv) => sv.title))
+        : copy.keywords.map((k) => pick.text(k)),
       noindex: !!input.previewMode,
     },
     animations: {
       enabled: true,
-      intensity: 'normal',
-      parallax: true,
-      magnetic: true,
-      textReveal: true,
+      profile: motion,
+      intensity: motionIntensity[motion] ?? 'normal',
+      parallax: motion !== 'minimal',
+      magnetic: motion !== 'minimal' && motion !== 'technical',
+      textReveal: motion !== 'technical',
       smoothScroll: false,
     },
     integrations: {
       form: input.formMode ?? (hasPhone ? 'whatsapp' : input.email ? 'mailto' : 'netlify'),
       analytics: { provider: 'none' },
     },
-    assets: { images: photos.map((p, i) => ({ id: `photo-${i}`, ...p })) },
+    assets: {
+      images: photos.map((p, i) => ({ id: `photo-${i}`, ...p })),
+      videos: input.hero?.video
+        ? [
+            {
+              id: 'hero-video',
+              src: input.hero.video.src,
+              webm: input.hero.video.webm,
+              poster: input.hero.video.poster,
+              duration: input.hero.video.duration,
+            },
+          ]
+        : [],
+    },
     pages: [{ path: '/', title: 'Início', hidden: false, sections }],
     previewMode: !!input.previewMode,
   };
@@ -216,6 +315,9 @@ interface BuildCtx {
   copy: ReturnType<typeof getCopy>;
   pick: ReturnType<typeof createPicker>;
   heroProps: Record<string, unknown>;
+  heroStats: { value: string; label: string }[];
+  finalCta?: { title: string; text: string };
+  locations: NonNullable<GenerateInput['locations']>;
   services: { title: string; description: string; icon?: string }[];
   benefits: { title: string; description: string; icon?: string }[];
   stats: { value: string; label: string; suffix?: string }[];
@@ -227,10 +329,12 @@ interface BuildCtx {
   primaryLabel: string;
   credits?: { name: string; url?: string };
   whatsappMessage: string;
+  facts: boolean;
+  content: NonNullable<GenerateInput['content']>;
 }
 
 function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
-  const { copy, pick } = c;
+  const { copy, pick, facts, content } = c;
   const base = (props: Record<string, unknown>): SectionInstance => ({
     type: bp.type,
     variant: bp.variant,
@@ -244,18 +348,37 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
     case 'hero-fullscreen':
     case 'hero-split':
     case 'hero-video':
-      return base(c.heroProps);
-    case 'marquee':
-      return base({ items: copy.marquee.map((m) => pick.text(m)) });
-    case 'manifesto':
-      return base({ text: pick.pick(copy.manifesto, 10), navLabel: undefined });
+    case 'hero-editorial':
+    case 'hero-showcase':
+    case 'hero-layered':
+      return base(bp.props?.withStats ? { ...c.heroProps, stats: c.heroStats } : c.heroProps);
+    case 'locations':
+      if (!c.locations.length) return null;
+      return base({
+        id: 'unidades',
+        navLabel: 'Unidades',
+        eyebrow: 'Onde estamos',
+        title: c.locations.length > 1 ? 'Nossas *unidades*' : 'Onde *estamos*',
+        items: c.locations,
+      });
+    case 'marquee': {
+      const items = facts ? (content.marquee ?? []) : copy.marquee.map((m) => pick.text(m));
+      return items.length ? base({ items }) : null;
+    }
+    case 'manifesto': {
+      const text = facts ? content.tagline : pick.pick(copy.manifesto, 10);
+      return text ? base({ text, navLabel: undefined }) : null;
+    }
     case 'services':
+      if (!c.services.length) return null;
       return base({
         id: 'servicos',
         navLabel: 'Serviços',
-        eyebrow: pick.text(copy.servicesHead.eyebrow),
-        title: pick.pick(copy.servicesHead.title, 11),
-        intro: pick.pick(copy.servicesHead.intro, 12),
+        eyebrow: facts ? (content.servicesHead?.eyebrow ?? 'Serviços') : pick.text(copy.servicesHead.eyebrow),
+        title: facts
+          ? (content.servicesHead?.title ?? 'O que *fazemos*')
+          : pick.pick(copy.servicesHead.title, 11),
+        intro: facts ? content.servicesHead?.intro : pick.pick(copy.servicesHead.intro, 12),
         items: c.services.map((s, i) => ({
           ...s,
           image: bp.variant === 'alternating' ? c.nextPhoto() : undefined,
@@ -263,15 +386,29 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
         })),
       });
     case 'benefits':
+      if (!c.benefits.length) return null;
       return base({
         id: 'diferenciais',
         navLabel: 'Diferenciais',
-        eyebrow: pick.text(copy.benefitsHead.eyebrow),
-        title: pick.pick(copy.benefitsHead.title, 13),
-        intro: pick.pick(copy.benefitsHead.intro, 14),
+        eyebrow: facts ? 'Diferenciais' : pick.text(copy.benefitsHead.eyebrow),
+        title: facts ? 'Por que a *gente*' : pick.pick(copy.benefitsHead.title, 13),
+        intro: facts ? undefined : pick.pick(copy.benefitsHead.intro, 14),
         items: c.benefits,
       });
     case 'about': {
+      if (facts) {
+        if (!content.about?.paragraphs.length) return null;
+        return base({
+          id: 'sobre',
+          navLabel: 'Sobre',
+          eyebrow: content.about.eyebrow ?? 'Sobre',
+          title: content.about.title ?? 'Quem *somos*',
+          paragraphs: content.about.paragraphs,
+          highlights: content.about.highlights ?? [],
+          image: c.nextPhoto(),
+          image2: c.nextPhoto(),
+        });
+      }
       const paras = copy.about.paragraphs.filter((set) =>
         set.every((p) => (p.includes('{anos}') ? !!pick.text('{anos}') : true)),
       );
@@ -291,6 +428,7 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
     }
     case 'numbers':
     case 'statistics':
+      if (!c.stats.length) return null;
       return base({
         items: c.stats,
         eyebrow: bp.variant === 'inline' ? undefined : 'Em números',
@@ -298,6 +436,7 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
       });
     case 'projects':
     case 'portfolio-masonry':
+      if (!c.projects.length) return null;
       return base({
         id: 'projetos',
         navLabel: 'Trabalhos',
@@ -311,20 +450,22 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
         id: 'galeria',
         navLabel: 'Galeria',
         eyebrow: 'Galeria',
-        title: pick.pick(copy.projectsHead.title, 17),
+        title: facts ? (content.galleryTitle ?? 'Nosso *trabalho*') : pick.pick(copy.projectsHead.title, 17),
         count: 6,
       });
     case 'process':
     case 'timeline':
+      if (!c.steps.length) return null;
       return base({
         id: 'como-funciona',
         navLabel: 'Como funciona',
-        eyebrow: pick.text(copy.processHead.eyebrow),
-        title: pick.pick(copy.processHead.title, 19),
-        intro: pick.pick(copy.processHead.intro, 20),
+        eyebrow: facts ? 'Como funciona' : pick.text(copy.processHead.eyebrow),
+        title: facts ? 'Simples *assim*' : pick.pick(copy.processHead.title, 19),
+        intro: facts ? undefined : pick.pick(copy.processHead.intro, 20),
         items: c.steps,
       });
     case 'testimonials':
+      if (!c.testimonials.length) return null;
       return base({
         id: 'depoimentos',
         navLabel: 'Depoimentos',
@@ -333,6 +474,7 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
         items: c.testimonials,
       });
     case 'faq':
+      if (!c.faqs.length) return null;
       return base({
         id: 'faq',
         navLabel: 'Dúvidas',
@@ -344,8 +486,8 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
     case 'cta':
       return base({
         eyebrow: pick.text(copy.finalCta.eyebrow),
-        title: pick.pick(copy.finalCta.title, 22),
-        text: pick.pick(copy.finalCta.text, 23),
+        title: c.finalCta?.title ?? pick.pick(copy.finalCta.title, 22),
+        text: c.finalCta?.text ?? pick.pick(copy.finalCta.text, 23),
         primaryCta: { label: c.primaryLabel },
         image: c.nextPhoto(),
       });
@@ -355,10 +497,14 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
         navLabel: 'Contato',
         eyebrow: 'Contato',
         title: 'Fale com a *gente*',
-        intro: pick.pick(copy.contactIntro, 24),
+        intro: facts
+          ? (content.contactIntro ?? 'Chame no WhatsApp ou envie uma mensagem.')
+          : pick.pick(copy.contactIntro, 24),
       });
+    case 'team':
+      return facts ? null : base({});
     case 'comparison':
-      if (!copy.comparison) return null;
+      if (!copy.comparison || facts) return null;
       return base({
         title: pick.text(copy.comparison.title),
         left: {
@@ -385,12 +531,13 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
         })),
       });
     case 'horizontal-scroll':
+      if (!c.benefits.length) return null;
       return base({
         id: 'destaques',
         navLabel: 'Destaques',
-        eyebrow: pick.text(copy.benefitsHead.eyebrow),
-        title: pick.pick(copy.benefitsHead.title, 13),
-        intro: pick.pick(copy.benefitsHead.intro, 14),
+        eyebrow: facts ? 'Diferenciais' : pick.text(copy.benefitsHead.eyebrow),
+        title: facts ? 'Por que a *gente*' : pick.pick(copy.benefitsHead.title, 13),
+        intro: facts ? undefined : pick.pick(copy.benefitsHead.intro, 14),
         items: c.benefits.map((b) => ({ title: b.title, description: b.description, image: c.nextPhoto() })),
       });
     case 'before-after':

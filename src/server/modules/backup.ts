@@ -135,6 +135,12 @@ export function importJson(
       tags: j(p.tags ?? []),
       logo_path: p.logoPath ?? null,
       photos: j(p.photos ?? []),
+      services: j(p.services ?? []),
+      differentials: j(p.differentials ?? []),
+      brand_colors: j(p.brandColors ?? []),
+      locations: j(p.locations ?? []),
+      research: p.research ? j(p.research) : null,
+      creative: p.creative ? j(p.creative) : null,
       created_at: p.createdAt,
       updated_at: p.updatedAt,
     }));
@@ -165,6 +171,8 @@ export function importJson(
       config: j(p.config),
       path: path.join(env.previewsDir, p.id),
       notes: p.notes ?? '',
+      meta: j(p.meta ?? {}),
+      published: p.published ? j(p.published) : null,
       created_at: p.createdAt,
     }));
     insert('proposals', d.proposals as any[], (p) => {

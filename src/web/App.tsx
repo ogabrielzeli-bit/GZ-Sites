@@ -7,6 +7,7 @@ import { ProspectDetail } from './pages/ProspectDetail';
 import { Projects } from './pages/Projects';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { SettingsPage } from './pages/Settings';
+import { PreviewPage } from './pages/Creative';
 
 export function App() {
   return (
@@ -16,6 +17,7 @@ export function App() {
         <Route path="pipeline" element={<Pipeline />} />
         <Route path="prospects" element={<Prospects />} />
         <Route path="prospects/:id" element={<ProspectDetail />} />
+        <Route path="preview/:id" element={<PreviewPage />} />
         <Route path="projects" element={<Projects />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="settings" element={<SettingsPage />} />

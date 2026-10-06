@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Camera,
@@ -51,6 +51,7 @@ import {
 } from '../components/ui';
 import { PageHeader } from '../components/Layout';
 import { ProspectFormModal } from './ProspectForm';
+import { AdaptiveMessages, AssetGrid, DirectionModal } from './Creative';
 import { NewProjectModal, PROJECT_STATUS } from './Projects';
 import { STAGES, stageLabel } from '@shared/stages';
 import { segmentLabel } from '@shared/segments';
@@ -63,7 +64,8 @@ export function ProspectDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>('ficha');
+  const [sp] = useSearchParams();
+  const [tab, setTab] = useState<Tab>((sp.get('tab') as Tab) || 'ficha');
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [poll, setPoll] = useState(false);
@@ -320,10 +322,6 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
     [['prospect', p.id]],
     () => toast.ok('Arquivos enviados e otimizados (WebP)'),
   );
-  const remove = useApiMutation(
-    (path: string) => api.del(`/prospects/${p.id}/uploads`, { path }),
-    [['prospect', p.id]],
-  );
   const wa = whatsappLink(p.whatsapp);
   const ig = instagramUrl(p.instagram);
   const row = (label: string, value?: React.ReactNode) =>
@@ -416,6 +414,35 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
             </span>
           ) : undefined,
         )}
+        {row('Serviços', p.services?.length ? p.services.map((s) => s.title).join(' · ') : undefined)}
+        {row('Diferenciais', p.differentials?.length ? p.differentials.join(' · ') : undefined)}
+        {row(
+          'Cores da marca',
+          p.brandColors?.length ? (
+            <span className="flex gap-2 flex-wrap">
+              {p.brandColors.map((c) => (
+                <span key={c} className="inline-flex items-center gap-1 text-xs">
+                  <span className="w-3.5 h-3.5 rounded-full border border-line" style={{ background: c }} />{' '}
+                  {c}
+                </span>
+              ))}
+            </span>
+          ) : undefined,
+        )}
+        {row(
+          'Unidades',
+          p.locations?.length ? (
+            <span className="flex flex-col gap-1">
+              {p.locations.map((l, i) => (
+                <span key={i}>
+                  <b>{l.name || `Unidade ${i + 1}`}</b>{' '}
+                  {[l.address, l.city, l.state].filter(Boolean).join(', ')}
+                  {l.openingHours ? ` · ${l.openingHours}` : ''}
+                </span>
+              ))}
+            </span>
+          ) : undefined,
+        )}
         {row('Observações', p.notes && <span className="whitespace-pre-wrap">{p.notes}</span>)}
         {!p.contactName && !p.whatsapp && !p.website && !p.instagram && (
           <p className="text-muted text-sm">
@@ -424,7 +451,7 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
         )}
       </Card>
       <Card
-        title="Logo e fotos"
+        title="Logo, fotos e vídeos"
         actions={
           <Button
             size="sm"
@@ -432,7 +459,7 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
             loading={upload.isPending}
             onClick={() => fileRef.current?.click()}
           >
-            Fotos
+            Fotos e vídeos
           </Button>
         }
       >
@@ -440,7 +467,7 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
           ref={fileRef}
           type="file"
           multiple
-          accept="image/*,video/mp4,video/webm"
+          accept="image/*,video/mp4,video/webm,video/quicktime,.mov"
           className="hidden"
           onChange={(e) =>
             e.target.files?.length &&
@@ -478,29 +505,7 @@ function FichaTab({ p, onEdit }: { p: ProspectFull; onEdit: () => void }) {
             </button>
           </div>
         </div>
-        {p.photos.length === 0 ? (
-          <p className="text-xs text-muted">
-            Sem fotos. As prévias usam placeholders bonitos até você enviar fotos reais do negócio.
-          </p>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {p.photos.map((ph) => (
-              <div
-                key={ph.path}
-                className="relative group aspect-square rounded-md overflow-hidden bg-panel-2"
-              >
-                <img src={ph.path} alt={ph.name} className="object-cover w-full h-full" loading="lazy" />
-                <button
-                  className="absolute top-1 right-1 hidden group-hover:grid place-items-center w-6 h-6 rounded bg-black/70 text-white"
-                  onClick={() => remove.mutate(ph.path)}
-                  aria-label="Remover"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <AssetGrid p={p} />
       </Card>
     </div>
   );
@@ -827,7 +832,15 @@ function PreviewsTab({ p }: { p: ProspectFull }) {
   const { data: meta } = useMeta();
   const toast = useToast();
   const [theme, setTheme] = useState('');
-  const [editing, setEditing] = useState<Preview | null>(null);
+  const [sp, setSp] = useSearchParams();
+  const [dirOpen, setDirOpen] = useState(false);
+  const [editing, setEditing] = useState<Preview | null>(
+    () => p.previews.find((pv) => pv.id === sp.get('edit')) ?? null,
+  );
+  const closeEditor = () => {
+    setEditing(null);
+    if (sp.get('edit')) setSp({}, { replace: true });
+  };
   const create = useApiMutation(
     (body: Record<string, unknown>) => api.post<Preview>(`/prospects/${p.id}/previews`, body),
     [['prospect', p.id], ['prospects']],
@@ -839,9 +852,18 @@ function PreviewsTab({ p }: { p: ProspectFull }) {
   const del = useApiMutation((id: string) => api.del(`/previews/${id}`), [['prospect', p.id], ['prospects']]);
   return (
     <div className="grid gap-4">
-      <Card title="Gerar nova prévia">
+      <Card title="Nova prévia">
+        <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-line">
+          <Button variant="primary" icon={<Wand2 className="w-4 h-4" />} onClick={() => setDirOpen(true)}>
+            Criar com direção criativa
+          </Button>
+          <p className="text-xs text-muted">
+            Pesquisa fontes públicas (se houver), monta o DNA do negócio e propõe 3 direções visuais
+            diferentes. Usa fotos, vídeos e unidades da ficha. Sem IA.
+          </p>
+        </div>
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Tema" className="w-64">
+          <Field label="Tema (modo clássico)" className="w-64">
             <Select value={theme} onChange={(e) => setTheme(e.target.value)}>
               <option value="">Automático (preset do segmento)</option>
               {meta?.themes.map((t) => (
@@ -857,12 +879,10 @@ function PreviewsTab({ p }: { p: ProspectFull }) {
             loading={create.isPending}
             onClick={() => create.mutate(theme ? { theme } : {}, { onError: (e) => toast.err(e.message) })}
           >
-            Gerar prévia
+            Gerar prévia clássica
           </Button>
           <p className="text-xs text-muted basis-full">
-            Cada prévia nova usa uma composição de seções diferente (variação {p.previews.length + 1}). Sem
-            IA: copy por nicho, tema e layout determinísticos. Fotos enviadas na ficha são usadas
-            automaticamente.
+            Modo V1: preset do segmento + tema, composição por variação ({p.previews.length + 1}).
           </p>
         </div>
       </Card>
@@ -897,16 +917,33 @@ function PreviewsTab({ p }: { p: ProspectFull }) {
                 </a>
                 <div className="p-4 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <div className="font-semibold text-sm">{th?.name ?? pv.theme}</div>
+                    <div className="font-semibold text-sm">
+                      {pv.meta?.direction?.name ?? th?.name ?? pv.theme}
+                    </div>
                     <span className="text-[11px] text-muted">{relativeTime(pv.createdAt)}</span>
                   </div>
-                  <div className="text-xs text-muted">
-                    Variação {pv.layoutVariant + 1} · {th?.fonts.display}
+                  <div className="text-xs text-muted flex flex-wrap gap-x-2">
+                    {pv.meta?.direction ? (
+                      <>
+                        <span>{th?.name ?? pv.theme}</span>
+                        <span>· seed {pv.meta.seed ?? 0}</span>
+                        {pv.meta.creativeScore != null && <span>· score {pv.meta.creativeScore}</span>}
+                      </>
+                    ) : (
+                      <span>
+                        Variação {pv.layoutVariant + 1} · {th?.fonts.display}
+                      </span>
+                    )}
+                    {pv.published && (
+                      <a href={pv.published.url} target="_blank" rel="noreferrer" className="text-success">
+                        · publicada
+                      </a>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <a className="btn btn-primary btn-sm" href={pv.url} target="_blank" rel="noreferrer">
-                      Abrir <ExternalLink className="w-3 h-3" />
-                    </a>
+                    <Link className="btn btn-primary btn-sm" to={`/preview/${pv.id}`}>
+                      Abrir
+                    </Link>
                     <CopyButton text={`${window.location.origin}${pv.url}`} label="Copiar link" />
                     <Button size="sm" onClick={() => setEditing(pv)}>
                       Ajustar dados
@@ -921,7 +958,8 @@ function PreviewsTab({ p }: { p: ProspectFull }) {
           })}
         </div>
       )}
-      {editing && <PreviewEditor preview={editing} prospectId={p.id} onClose={() => setEditing(null)} />}
+      {editing && <PreviewEditor preview={editing} prospectId={p.id} onClose={closeEditor} />}
+      <DirectionModal p={p} open={dirOpen} onClose={() => setDirOpen(false)} />
     </div>
   );
 }
@@ -1426,48 +1464,51 @@ function MessagesTab({ p }: { p: ProspectFull }) {
         </ul>
         <div className="p-3 text-[11px] text-muted">Edite os modelos em Configurações → Mensagens.</div>
       </Card>
-      <Card
-        title={current?.name ?? 'Mensagem'}
-        actions={
-          meta?.ai.available && (
-            <Select
-              className="h-8 w-36 text-xs"
-              defaultValue=""
-              onChange={(e) => e.target.value && tone.mutate(e.target.value)}
-            >
-              <option value="">Adaptar tom (IA)</option>
-              <option value="formal">Formal</option>
-              <option value="amigavel">Amigável</option>
-              <option value="direto">Direto</option>
-              <option value="premium">Premium</option>
-              <option value="descontraido">Descontraído</option>
-            </Select>
-          )
-        }
-      >
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={14} />
-        <div className="flex flex-wrap gap-2 mt-3">
-          <CopyButton text={text} label="Copiar mensagem" />
-          {wa ? (
-            <a
-              className="btn btn-primary btn-sm"
-              href={wa}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => contact.mutate(undefined)}
-            >
-              <MessageCircle className="w-3.5 h-3.5" /> Abrir no WhatsApp
-            </a>
-          ) : (
-            <span className="text-xs text-muted self-center">
-              Cadastre o WhatsApp na ficha para abrir a conversa direto.
-            </span>
-          )}
-          <Button size="sm" variant="ghost" onClick={() => contact.mutate(undefined)}>
-            Registrar contato
-          </Button>
-        </div>
-      </Card>
+      <div className="grid gap-4">
+        <AdaptiveMessages p={p} onUse={(t) => setText(t)} />
+        <Card
+          title={current?.name ?? 'Mensagem'}
+          actions={
+            meta?.ai.available && (
+              <Select
+                className="h-8 w-36 text-xs"
+                defaultValue=""
+                onChange={(e) => e.target.value && tone.mutate(e.target.value)}
+              >
+                <option value="">Adaptar tom (IA)</option>
+                <option value="formal">Formal</option>
+                <option value="amigavel">Amigável</option>
+                <option value="direto">Direto</option>
+                <option value="premium">Premium</option>
+                <option value="descontraido">Descontraído</option>
+              </Select>
+            )
+          }
+        >
+          <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={14} />
+          <div className="flex flex-wrap gap-2 mt-3">
+            <CopyButton text={text} label="Copiar mensagem" />
+            {wa ? (
+              <a
+                className="btn btn-primary btn-sm"
+                href={wa}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => contact.mutate(undefined)}
+              >
+                <MessageCircle className="w-3.5 h-3.5" /> Abrir no WhatsApp
+              </a>
+            ) : (
+              <span className="text-xs text-muted self-center">
+                Cadastre o WhatsApp na ficha para abrir a conversa direto.
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => contact.mutate(undefined)}>
+              Registrar contato
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

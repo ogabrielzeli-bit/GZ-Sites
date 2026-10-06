@@ -1,6 +1,7 @@
 /**
  * Repositórios: traduzem linhas SQL ↔ objetos do domínio. Toda escrita passa por aqui.
  */
+import { normalizeAsset, type ProspectAsset } from '@shared/v2';
 import { randomUUID } from 'node:crypto';
 import type { Database, Row } from './database';
 import type {
@@ -59,7 +60,13 @@ function rowToProspect(r: Row): Prospect {
     nextFollowupAt: (r.next_followup_at as string) ?? null,
     tags: pj(r.tags, []),
     logoPath: (r.logo_path as string) ?? null,
-    photos: pj(r.photos, []),
+    photos: (pj(r.photos, []) as ProspectAsset[]).map(normalizeAsset),
+    services: pj(r.services, []),
+    differentials: pj(r.differentials, []),
+    brandColors: pj(r.brand_colors, []),
+    locations: pj(r.locations, []),
+    research: pj(r.research, null),
+    creative: pj(r.creative, null),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   };
@@ -111,8 +118,8 @@ export class ProspectRepo {
     const id = newId();
     const ts = now();
     this.db.run(
-      `INSERT INTO prospects (id,name,slug,segment,city,state,country,instagram,website,whatsapp,phone,email,contact_name,notes,links,lead_source,stage,potential_value,closed_value,last_contact_at,next_followup_at,tags,logo_path,photos,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO prospects (id,name,slug,segment,city,state,country,instagram,website,whatsapp,phone,email,contact_name,notes,links,lead_source,stage,potential_value,closed_value,last_contact_at,next_followup_at,tags,logo_path,photos,services,differentials,brand_colors,locations,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         id,
         input.name,
@@ -138,6 +145,10 @@ export class ProspectRepo {
         j(input.tags ?? []),
         null,
         '[]',
+        j(input.services ?? []),
+        j(input.differentials ?? []),
+        j(input.brandColors ?? []),
+        j(input.locations ?? []),
         ts,
         ts,
       ],
@@ -147,7 +158,12 @@ export class ProspectRepo {
 
   update(
     id: string,
-    patch: Partial<ProspectInput> & { logoPath?: string | null; photos?: Prospect['photos'] },
+    patch: Partial<ProspectInput> & {
+      logoPath?: string | null;
+      photos?: Prospect['photos'];
+      research?: Prospect['research'];
+      creative?: Prospect['creative'];
+    },
   ): Prospect {
     const current = this.get(id);
     if (!current) throw new Error('Prospect não encontrado');
@@ -184,6 +200,12 @@ export class ProspectRepo {
     if (patch.links !== undefined) set('links', j(patch.links));
     if (patch.tags !== undefined) set('tags', j(patch.tags));
     if (patch.photos !== undefined) set('photos', j(patch.photos));
+    if (patch.services !== undefined) set('services', j(patch.services));
+    if (patch.differentials !== undefined) set('differentials', j(patch.differentials));
+    if (patch.brandColors !== undefined) set('brand_colors', j(patch.brandColors));
+    if (patch.locations !== undefined) set('locations', j(patch.locations));
+    if (patch.research !== undefined) set('research', j(patch.research));
+    if (patch.creative !== undefined) set('creative', j(patch.creative));
     set('updated_at', now());
     const cols = Object.keys(map);
     this.db.run(`UPDATE prospects SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, [
@@ -293,15 +315,28 @@ function rowToPreview(r: Row): Preview {
     path: r.path as string,
     url: `/previews/${r.id as string}/`,
     notes: (r.notes as string) || '',
+    meta: pj(r.meta, {}),
+    published: pj(r.published, null),
     createdAt: r.created_at as string,
   };
 }
 export class PreviewRepo {
   constructor(private db: Database) {}
-  create(p: Omit<Preview, 'createdAt' | 'url'>): Preview {
+  create(p: Omit<Preview, 'createdAt' | 'url' | 'meta' | 'published'> & { meta?: Preview['meta'] }): Preview {
     this.db.run(
-      `INSERT INTO previews (id,prospect_id,theme,segment,layout_variant,config,path,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-      [p.id, p.prospectId, p.theme, p.segment, p.layoutVariant, j(p.config), p.path, p.notes, now()],
+      `INSERT INTO previews (id,prospect_id,theme,segment,layout_variant,config,path,notes,meta,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [
+        p.id,
+        p.prospectId,
+        p.theme,
+        p.segment,
+        p.layoutVariant,
+        j(p.config),
+        p.path,
+        p.notes,
+        j(p.meta ?? {}),
+        now(),
+      ],
     );
     return this.get(p.id)!;
   }
@@ -309,12 +344,14 @@ export class PreviewRepo {
     const r = this.db.get('SELECT * FROM previews WHERE id = ?', [id]);
     return r ? rowToPreview(r) : undefined;
   }
-  updateConfig(id: string, config: unknown, notes?: string) {
-    this.db.run('UPDATE previews SET config = ?, notes = COALESCE(?, notes) WHERE id = ?', [
-      j(config),
-      notes ?? null,
-      id,
-    ]);
+  updateConfig(id: string, config: unknown, notes?: string, meta?: Preview['meta']) {
+    this.db.run(
+      'UPDATE previews SET config = ?, notes = COALESCE(?, notes), meta = COALESCE(?, meta) WHERE id = ?',
+      [j(config), notes ?? null, meta ? j(meta) : null, id],
+    );
+  }
+  setPublished(id: string, published: Preview['published']) {
+    this.db.run('UPDATE previews SET published = ? WHERE id = ?', [j(published), id]);
   }
   listByProspect(prospectId: string): Preview[] {
     return this.db

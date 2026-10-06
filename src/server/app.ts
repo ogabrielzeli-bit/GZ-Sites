@@ -10,6 +10,7 @@ import { prospectRoutes } from './routes/prospects';
 import { projectPreviewHandler, projectRoutes } from './routes/projects';
 import { systemRoutes } from './routes/system';
 import { resolveStaticFile } from '../qa/static-server';
+import { ensurePreviewFiles } from './modules/previews';
 
 export function createApp(ctx: AppContext) {
   const app = express();
@@ -88,7 +89,25 @@ export function createApp(ctx: AppContext) {
   serveDir('/files/uploads', ctx.env.uploadsDir);
   serveDir('/files/audits', ctx.env.auditsDir);
   serveDir('/files/projects', ctx.env.projectsDir);
-  serveDir('/previews', ctx.env.previewsDir);
+  // prévias: se os arquivos sumiram mas a prévia existe no banco, re-renderiza na hora (nunca 404 "misterioso")
+  app.use('/previews', (req, res, next) => {
+    let file = resolveStaticFile(ctx.env.previewsDir, req.path);
+    if (!file) {
+      const id = req.path.split('/')[1];
+      if (id && /^[0-9a-f-]{36}$/i.test(id) && ctx.repos.previews.get(id)) {
+        try {
+          ensurePreviewFiles(ctx.repos, id);
+          file = resolveStaticFile(ctx.env.previewsDir, req.path);
+        } catch (e) {
+          console.warn(`[previews] falha ao re-renderizar ${id}: ${(e as Error).message}`);
+        }
+      }
+    }
+    if (!file) return next();
+    res.setHeader('Cache-Control', file.endsWith('.html') ? 'no-cache' : 'private, max-age=3600');
+    res.sendFile(file);
+  });
+  serveDir('/published', path.join(ctx.env.dataDir, 'published'));
   app.use('/projects-preview', projectPreviewHandler(ctx));
 
   // ---- dashboard compilado (produção) ----

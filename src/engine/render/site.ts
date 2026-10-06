@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ImageRef, PageConfig, SiteConfig } from '@shared/site-config';
 import { parseSiteConfig } from '@shared/site-config';
+import { VIDEO_EXT_RE } from '@shared/v2';
 import { escapeHtml, formatPhoneBR, instagramUrl, whatsappLink } from '@shared/utils';
 import { getTheme, googleFontsUrl, type Theme } from '../themes';
 import { buildCss } from '../css';
@@ -69,12 +70,13 @@ export function renderSite(input: SiteConfig | unknown, opts: RenderOptions = {}
     const abs = localFile(src);
     if (abs && fs.existsSync(abs)) {
       const name = path.basename(abs);
-      const out = `assets/img/${name}`;
+      const out = `assets/${VIDEO_EXT_RE.test(name) ? 'video' : 'img'}/${name}`;
       if (!emitted.has(out)) {
         files.set(out, fs.readFileSync(abs));
         emitted.add(out);
       }
-      return out;
+      // URL segura mesmo com espaços/acentos no nome do arquivo
+      return out.split('/').map(encodeURIComponent).join('/');
     }
     if (src.startsWith('assets/')) return src;
     warnings.push(`Imagem não encontrada: ${src}`);
@@ -84,6 +86,13 @@ export function renderSite(input: SiteConfig | unknown, opts: RenderOptions = {}
   function makeAssets(base: string): AssetResolver {
     return {
       image(ref: ImageRef | undefined | null, o): ResolvedImage {
+        if (ref?.src && VIDEO_EXT_RE.test(ref.src)) {
+          // um vídeo nunca pode ser renderizado como <img>: cai para placeholder e avisa
+          warnings.push(
+            `Vídeo usado como imagem (${ref.src}) em "${o.key}" — ignorado; use o hero em vídeo.`,
+          );
+          ref = null;
+        }
         if (ref?.src && !ref.placeholder) {
           const rel = assetFor(ref.src);
           const isLocal = !/^(https?:)?\/\//.test(rel) && !rel.startsWith('data:');
@@ -323,7 +332,7 @@ function renderPage(
     : '';
 
   return `<!doctype html>
-<html lang="${escapeHtml(config.seo.lang)}" class="${htmlClasses}" data-anim-intensity="${config.animations.intensity}" data-parallax="${config.animations.parallax ? '1' : '0'}" data-magnetic="${config.animations.magnetic ? '1' : '0'}">
+<html lang="${escapeHtml(config.seo.lang)}" class="${htmlClasses}" data-anim-intensity="${config.animations.intensity}" data-motion="${config.animations.profile}" data-parallax="${config.animations.parallax ? '1' : '0'}" data-magnetic="${config.animations.magnetic ? '1' : '0'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
