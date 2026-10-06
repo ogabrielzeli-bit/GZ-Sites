@@ -45,11 +45,9 @@ export function createApp(ctx: AppContext) {
         return next();
       }
       if (req.path.startsWith('/api/'))
-        return res
-          .status(401)
-          .json({
-            error: 'Não autorizado. Informe o token de acesso (?token=... ou Authorization: Bearer).',
-          });
+        return res.status(401).json({
+          error: 'Não autorizado. Informe o token de acesso (?token=... ou Authorization: Bearer).',
+        });
       res
         .status(401)
         .type('html')

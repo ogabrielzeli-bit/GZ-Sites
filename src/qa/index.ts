@@ -371,6 +371,14 @@ async function testForm(page: Page): Promise<QaCheck> {
     if (state !== 'sent') items.push(`Estado final: ${state} (esperado: sent)`);
     if (mode === 'whatsapp' && !opened.some((u) => u.includes('wa.me')))
       items.push('Não abriu o WhatsApp com os dados');
+    if (items.length && mode === 'netlify' && invalid)
+      return {
+        id: 'form',
+        group: 'form',
+        status: 'warning',
+        title: 'Formulário Netlify Forms: validação OK; o envio só funciona publicado na Netlify',
+        items,
+      };
     return items.length
       ? { id: 'form', group: 'form', status: 'fail', title: 'Formulário com problemas', items }
       : { id: 'form', group: 'form', status: 'pass', title: `Formulário OK (validação + envio ${mode})` };

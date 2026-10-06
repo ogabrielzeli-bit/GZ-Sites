@@ -70,6 +70,7 @@ export function createProject(
     config = generateSiteConfig({
       name: input.name,
       segment: input.segment ?? 'servicos',
+      theme: settings.defaultTheme,
       previewMode: false,
       credits: { name: settings.agencyName, url: settings.website || undefined },
     }).config;
@@ -278,7 +279,7 @@ export function exportFullZip(project: Project): string {
   fs.mkdirSync(env.exportsDir, { recursive: true });
   const out = path.join(env.exportsDir, `${project.slug}-projeto.zip`);
   const zip = new AdmZip();
-  const skip = new Set(['node_modules', 'dist']);
+  const skip = new Set(['node_modules', 'dist', 'qa']);
   for (const entry of fs.readdirSync(project.path)) {
     if (skip.has(entry)) continue;
     const full = path.join(project.path, entry);

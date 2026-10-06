@@ -17,9 +17,7 @@ interface Rule {
   id: string;
   category: AuditCategory;
   /** retorna null se a regra não se aplica; penalty em pontos (0 = pass) */
-  check: (
-    r: Partial,
-  ) => {
+  check: (r: Partial) => {
     status: AuditFinding['status'];
     penalty: number;
     title: string;

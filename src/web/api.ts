@@ -127,13 +127,14 @@ export const useProspects = (params: { q?: string; stage?: string; segment?: str
 export const useProspect = (id: string | undefined, poll = false) =>
   q<ProspectFull>(['prospect', id], `/prospects/${id}`, {
     enabled: !!id,
-    refetchInterval: poll ? 3000 : false,
+    refetchInterval: poll ? 2500 : false,
   });
 export const useAudit = (id: string | undefined, poll = false) =>
   q<AuditFull>(['audit', id], `/audits/${id}`, { enabled: !!id, refetchInterval: poll ? 2500 : false });
 export const useProjects = () => q<Project[]>(['projects'], '/projects');
 export const useProject = (id: string | undefined, poll = false) =>
-  q<ProjectFull>(['project', id], `/projects/${id}`, { enabled: !!id, refetchInterval: poll ? 3000 : false });
+  q<ProjectFull>(['project', id], `/projects/${id}`, { enabled: !!id, refetchInterval: poll ? 2500 : false });
+
 export const useTemplates = (kind?: string) =>
   q<Template[]>(['templates', kind], `/templates${kind ? '?kind=' + kind : ''}`);
 export const useTasks = (prospectId?: string) =>

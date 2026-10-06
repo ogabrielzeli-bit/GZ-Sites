@@ -66,10 +66,9 @@ export function ProspectDetail() {
   const [tab, setTab] = useState<Tab>('ficha');
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
-  const { data: p, isLoading, error, refetch } = useProspect(id, true);
-  const polling = !!p?.activeJobs.length;
-  const { data: p2 } = useProspect(id, polling);
-  const prospect = p2 ?? p;
+  const [poll, setPoll] = useState(false);
+  const { data: prospect, isLoading, error, refetch } = useProspect(id, poll);
+  useEffect(() => setPoll(!!prospect?.activeJobs.length), [prospect]);
   const stage = useApiMutation(
     (s: string) => api.post(`/prospects/${id}/stage`, { stage: s }),
     [['prospect', id], ['prospects']],

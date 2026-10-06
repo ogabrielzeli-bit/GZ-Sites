@@ -48,9 +48,9 @@ export function ProjectDetail() {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   const [delOpen, setDelOpen] = useState(false);
-  const { data: p0, isLoading, error } = useProject(id);
-  const { data: p1 } = useProject(id, !!p0?.activeJobs.length);
-  const p = p1 ?? p0;
+  const [poll, setPoll] = useState(false);
+  const { data: p, isLoading, error } = useProject(id, poll);
+  useEffect(() => setPoll(!!p?.activeJobs.length), [p]);
   const build = useApiMutation(
     () => api.post<{ files: number; warnings: string[] }>(`/projects/${id}/build`),
     [['project', id], ['projects']],

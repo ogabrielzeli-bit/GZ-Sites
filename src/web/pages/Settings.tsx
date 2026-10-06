@@ -118,7 +118,7 @@ function AgencyTab({ s }: { s: Settings }) {
             <Input value={f.locale} onChange={set('locale')} className="w-28" />
           </div>
         </Field>
-        <Field label="Tema padrão das prévias">
+        <Field label="Tema padrão (projetos avulsos)" hint="Prévias de prospects usam o preset do segmento.">
           <Select value={f.defaultTheme} onChange={set('defaultTheme')}>
             {THEME_IDS.map((t) => (
               <option key={t} value={t}>
