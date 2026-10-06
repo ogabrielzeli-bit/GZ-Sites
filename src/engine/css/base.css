@@ -2348,7 +2348,7 @@ body.menu-open {
   letter-spacing: 0.12em;
   color: var(--c-accent);
 }
-@media (max-width: 899px) {
+@media (max-width: 899px), (prefers-reduced-motion: reduce) {
   .hscroll__track {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
