@@ -246,7 +246,16 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
     },
     assets: {
       images: photos.map((p, i) => ({ id: `photo-${i}`, ...p })),
-      videos: input.hero?.video ? [{ id: 'hero-video', src: input.hero.video.src, poster: input.hero.video.poster, duration: input.hero.video.duration }] : [],
+      videos: input.hero?.video
+        ? [
+            {
+              id: 'hero-video',
+              src: input.hero.video.src,
+              poster: input.hero.video.poster,
+              duration: input.hero.video.duration,
+            },
+          ]
+        : [],
     },
     pages: [{ path: '/', title: 'Início', hidden: false, sections }],
     previewMode: !!input.previewMode,

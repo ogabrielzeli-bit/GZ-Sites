@@ -5,7 +5,17 @@ import { z } from 'zod';
 import { SEGMENT_IDS } from './segments';
 import { STAGE_IDS } from './stages';
 import { THEME_IDS } from './site-config';
-import { CreativityLevel, LocationSchema, ServiceInput, type BusinessDNA, type CreativeDirection, type PreviewMeta, type ProspectAsset, type PublishedPreview, type Research } from './v2';
+import {
+  CreativityLevel,
+  LocationSchema,
+  ServiceInput,
+  type BusinessDNA,
+  type CreativeDirection,
+  type PreviewMeta,
+  type ProspectAsset,
+  type PublishedPreview,
+  type Research,
+} from './v2';
 
 const optStr = z
   .string()

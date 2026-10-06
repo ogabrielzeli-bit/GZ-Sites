@@ -21,15 +21,75 @@ const isDesktop = () => matchMedia('(min-width: 900px)').matches;
  * elegant: suave e lento · performance: rápido e firme · technical: seco, sem floreio
  * editorial: lento, com clip reveals · playful: elástico · minimal: quase nada · cinematic: lento e amplo
  */
-type MotionProfile = 'elegant' | 'performance' | 'technical' | 'editorial' | 'playful' | 'minimal' | 'cinematic';
-const PROFILES: Record<MotionProfile, { dist: number; dur: number; ease: string; stagger: number; imageScale: number; textRotate: number; glow: boolean }> = {
+type MotionProfile =
+  'elegant' | 'performance' | 'technical' | 'editorial' | 'playful' | 'minimal' | 'cinematic';
+const PROFILES: Record<
+  MotionProfile,
+  {
+    dist: number;
+    dur: number;
+    ease: string;
+    stagger: number;
+    imageScale: number;
+    textRotate: number;
+    glow: boolean;
+  }
+> = {
   elegant: { dist: 1, dur: 1, ease: 'power3.out', stagger: 1, imageScale: 1.15, textRotate: -20, glow: true },
-  performance: { dist: 1.3, dur: 0.65, ease: 'power4.out', stagger: 0.6, imageScale: 1.25, textRotate: 0, glow: true },
-  technical: { dist: 0.5, dur: 0.5, ease: 'power2.out', stagger: 0.5, imageScale: 1.02, textRotate: 0, glow: false },
-  editorial: { dist: 0.8, dur: 1.3, ease: 'power2.out', stagger: 1.2, imageScale: 1.08, textRotate: 0, glow: false },
-  playful: { dist: 1.2, dur: 0.9, ease: 'back.out(1.6)', stagger: 1, imageScale: 1.2, textRotate: -30, glow: true },
-  minimal: { dist: 0.4, dur: 0.6, ease: 'power1.out', stagger: 0.6, imageScale: 1, textRotate: 0, glow: false },
-  cinematic: { dist: 1.4, dur: 1.5, ease: 'expo.out', stagger: 1.3, imageScale: 1.3, textRotate: -12, glow: true },
+  performance: {
+    dist: 1.3,
+    dur: 0.65,
+    ease: 'power4.out',
+    stagger: 0.6,
+    imageScale: 1.25,
+    textRotate: 0,
+    glow: true,
+  },
+  technical: {
+    dist: 0.5,
+    dur: 0.5,
+    ease: 'power2.out',
+    stagger: 0.5,
+    imageScale: 1.02,
+    textRotate: 0,
+    glow: false,
+  },
+  editorial: {
+    dist: 0.8,
+    dur: 1.3,
+    ease: 'power2.out',
+    stagger: 1.2,
+    imageScale: 1.08,
+    textRotate: 0,
+    glow: false,
+  },
+  playful: {
+    dist: 1.2,
+    dur: 0.9,
+    ease: 'back.out(1.6)',
+    stagger: 1,
+    imageScale: 1.2,
+    textRotate: -30,
+    glow: true,
+  },
+  minimal: {
+    dist: 0.4,
+    dur: 0.6,
+    ease: 'power1.out',
+    stagger: 0.6,
+    imageScale: 1,
+    textRotate: 0,
+    glow: false,
+  },
+  cinematic: {
+    dist: 1.4,
+    dur: 1.5,
+    ease: 'expo.out',
+    stagger: 1.3,
+    imageScale: 1.3,
+    textRotate: -12,
+    glow: true,
+  },
 };
 const profile = PROFILES[(root.dataset.motion as MotionProfile) || 'elegant'] ?? PROFILES.elegant;
 const dist = Math.round({ subtle: 18, normal: 32, bold: 56 }[intensity] * profile.dist);
@@ -141,7 +201,12 @@ function initReveals() {
       0,
     );
     if (img && profile.imageScale > 1)
-      tl.fromTo(img, { scale: profile.imageScale }, { scale: 1, duration: 1.4 * profile.dur, ease: 'power3.out' }, 0);
+      tl.fromTo(
+        img,
+        { scale: profile.imageScale },
+        { scale: 1, duration: 1.4 * profile.dur, ease: 'power3.out' },
+        0,
+      );
   });
   $all('[data-gz="clip"]').forEach((el) => {
     gsap.fromTo(

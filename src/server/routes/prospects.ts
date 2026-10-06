@@ -21,7 +21,13 @@ import { buildMessageVars, renderMessage, renderTemplate } from '../modules/mess
 import { deleteAsset, MAX_VIDEO_BYTES, storeAsset } from '../modules/uploads';
 import { brandPaletteFromLogo, optimizeVideo, publicPathOf } from '../modules/assets';
 import { AssetRole, type ImageAnalysis, type VideoAnalysis } from '@shared/v2';
-import { createComposedPreview, prepareDirections, previewCreativeReport, regeneratePreview, setPreviewLocks } from '../modules/creative';
+import {
+  createComposedPreview,
+  prepareDirections,
+  previewCreativeReport,
+  regeneratePreview,
+  setPreviewLocks,
+} from '../modules/creative';
 import { publishPreview, publishStatus } from '../modules/publish';
 import { ADAPTIVE_KINDS, composeMessage, type AdaptiveKind } from '../modules/messages/adaptive';
 import { createAIProvider } from '../modules/ai';
@@ -208,7 +214,18 @@ export function prospectRoutes(ctx: AppContext) {
             const cur = repos.prospects.get(p.id);
             if (!cur) return null;
             repos.prospects.update(p.id, {
-              photos: cur.photos.map((ph) => (ph.path === s.path ? { ...ph, analysis: { ...(ph.analysis as VideoAnalysis), optimized: publicPathOf(out), sizeWarning: undefined } } : ph)),
+              photos: cur.photos.map((ph) =>
+                ph.path === s.path
+                  ? {
+                      ...ph,
+                      analysis: {
+                        ...(ph.analysis as VideoAnalysis),
+                        optimized: publicPathOf(out),
+                        sizeWarning: undefined,
+                      },
+                    }
+                  : ph,
+              ),
             });
             repos.activities.log(p.id, 'video.optimized', `Vídeo otimizado para web: ${s.name}`);
             return publicPathOf(out);
@@ -223,9 +240,20 @@ export function prospectRoutes(ctx: AppContext) {
     '/prospects/:id/uploads',
     h((req, res) => {
       const p = getProspect(req.params.id as string);
-      const { path: pth, role, name } = parse(z.object({ path: z.string(), role: AssetRole.optional(), name: z.string().max(120).optional() }), req.body);
+      const {
+        path: pth,
+        role,
+        name,
+      } = parse(
+        z.object({ path: z.string(), role: AssetRole.optional(), name: z.string().max(120).optional() }),
+        req.body,
+      );
       if (!p.photos.some((ph) => ph.path === pth)) throw notFound('Arquivo');
-      repos.prospects.update(p.id, { photos: p.photos.map((ph) => (ph.path === pth ? { ...ph, ...(role ? { role } : {}), ...(name ? { name } : {}) } : ph)) });
+      repos.prospects.update(p.id, {
+        photos: p.photos.map((ph) =>
+          ph.path === pth ? { ...ph, ...(role ? { role } : {}), ...(name ? { name } : {}) } : ph,
+        ),
+      });
       res.json(repos.prospects.get(p.id));
     }),
   );
@@ -350,7 +378,10 @@ export function prospectRoutes(ctx: AppContext) {
     '/prospects/:id/directions',
     h(async (req, res) => {
       const p = getProspect(req.params.id as string);
-      const { refresh, research } = parse(z.object({ refresh: z.boolean().optional(), research: z.boolean().optional() }), req.body ?? {});
+      const { refresh, research } = parse(
+        z.object({ refresh: z.boolean().optional(), research: z.boolean().optional() }),
+        req.body ?? {},
+      );
       res.json(await prepareDirections(repos, p, { refresh, research }));
     }),
   );
@@ -364,15 +395,28 @@ export function prospectRoutes(ctx: AppContext) {
       // V2: com direção (ou 'auto') usa o motor adaptativo; sem direção e sem config, mantém o fluxo V1 (tema/variante)
       const preview =
         !input.config && (input.directionId || input.seed !== undefined)
-          ? createComposedPreview(repos, p, { directionId: input.directionId ?? 'auto', seed: input.seed, locks: input.locks, notes: input.notes })
-          : createPreview(repos, p, { theme: input.theme, layoutVariant: input.layoutVariant, config: input.config, notes: input.notes });
+          ? createComposedPreview(repos, p, {
+              directionId: input.directionId ?? 'auto',
+              seed: input.seed,
+              locks: input.locks,
+              notes: input.notes,
+            })
+          : createPreview(repos, p, {
+              theme: input.theme,
+              layoutVariant: input.layoutVariant,
+              config: input.config,
+              notes: input.notes,
+            });
       res.status(201).json(preview);
     }),
   );
   r.post(
     '/previews/:id/regenerate',
     h((req, res) => {
-      const { locks, directionId } = parse(z.object({ locks: z.array(z.string()).optional(), directionId: z.string().optional() }), req.body ?? {});
+      const { locks, directionId } = parse(
+        z.object({ locks: z.array(z.string()).optional(), directionId: z.string().optional() }),
+        req.body ?? {},
+      );
       res.status(201).json(regeneratePreview(repos, req.params.id as string, { locks, directionId }));
     }),
   );
@@ -389,7 +433,10 @@ export function prospectRoutes(ctx: AppContext) {
       res.json(previewCreativeReport(repos, req.params.id as string));
     }),
   );
-  r.get('/publish/status', h((_req, res) => res.json(publishStatus())));
+  r.get(
+    '/publish/status',
+    h((_req, res) => res.json(publishStatus())),
+  );
   r.post(
     '/previews/:id/publish',
     h(async (req, res) => {
@@ -399,15 +446,32 @@ export function prospectRoutes(ctx: AppContext) {
     }),
   );
   // mensagens adaptativas (condicionais ao que existe no prospect)
-  r.get('/messages/adaptive/kinds', h((_req, res) => res.json(ADAPTIVE_KINDS)));
+  r.get(
+    '/messages/adaptive/kinds',
+    h((_req, res) => res.json(ADAPTIVE_KINDS)),
+  );
   r.post(
     '/prospects/:id/messages/adaptive',
     h((req, res) => {
       const p = getProspect(req.params.id as string);
-      const { kind, previewId, proposalId } = parse(z.object({ kind: z.enum(ADAPTIVE_KINDS.map((k) => k.id) as [AdaptiveKind, ...AdaptiveKind[]]), previewId: z.string().optional(), proposalId: z.string().optional() }), req.body ?? {});
+      const { kind, previewId, proposalId } = parse(
+        z.object({
+          kind: z.enum(ADAPTIVE_KINDS.map((k) => k.id) as [AdaptiveKind, ...AdaptiveKind[]]),
+          previewId: z.string().optional(),
+          proposalId: z.string().optional(),
+        }),
+        req.body ?? {},
+      );
       const preview = previewId ? repos.previews.get(previewId) : repos.previews.listByProspect(p.id)[0];
       const proposal = proposalId ? repos.proposals.get(proposalId) : repos.proposals.listByProspect(p.id)[0];
-      const text = composeMessage(kind, { prospect: p, settings: repos.settings.get(), audit: repos.audits.latestForProspect(p.id), preview, proposal, baseUrl: `${req.protocol}://${req.get('host')}` });
+      const text = composeMessage(kind, {
+        prospect: p,
+        settings: repos.settings.get(),
+        audit: repos.audits.latestForProspect(p.id),
+        preview,
+        proposal,
+        baseUrl: `${req.protocol}://${req.get('host')}`,
+      });
       res.json({ text, kind });
     }),
   );

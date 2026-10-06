@@ -2,7 +2,15 @@
  * Site Composer adaptativo — BusinessDNA + direção criativa + assets → composição de seções,
  * copy baseada em serviços reais e parâmetros de tema/motion. Determinístico por seed.
  */
-import type { BusinessDNA, CreativeDirection, CreativityLevel, Location, ProspectAsset, ImageAnalysis, VideoAnalysis } from '@shared/v2';
+import type {
+  BusinessDNA,
+  CreativeDirection,
+  CreativityLevel,
+  Location,
+  ProspectAsset,
+  ImageAnalysis,
+  VideoAnalysis,
+} from '@shared/v2';
 import type { ImageRef, SiteConfig } from '@shared/site-config';
 import { hashString, seededRandom, uniq } from '@shared/utils';
 import type { Blueprint } from './presets/layouts';
@@ -35,33 +43,91 @@ export function planAssets(assets: ProspectAsset[] = []) {
   const usable = assets.filter((a) => a.role !== 'none');
   const videos = usable.filter((a) => a.kind === 'video');
   const images = usable.filter((a) => a.kind !== 'video');
-  const heroVideo = videos.find((v) => v.role === 'hero') ?? (videos.some((v) => v.role === 'background') ? undefined : videos[0]);
+  const heroVideo =
+    videos.find((v) => v.role === 'hero') ??
+    (videos.some((v) => v.role === 'background') ? undefined : videos[0]);
   const bgVideo = videos.find((v) => v.role === 'background');
-  const byHero = [...images].sort((a, b) => (((b.analysis as ImageAnalysis)?.heroScore ?? 0) - ((a.analysis as ImageAnalysis)?.heroScore ?? 0)));
+  const byHero = [...images].sort(
+    (a, b) =>
+      ((b.analysis as ImageAnalysis)?.heroScore ?? 0) - ((a.analysis as ImageAnalysis)?.heroScore ?? 0),
+  );
   const heroImage = images.find((i) => i.role === 'hero') ?? byHero[0];
   const gallery = images.filter((i) => i.role === 'gallery' || (i.role !== 'hero' && i !== heroImage));
-  const toRef = (a: ProspectAsset): ImageRef => ({ src: a.path, alt: a.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' '), width: a.width, height: a.height });
-  return { heroVideo, bgVideo, heroImage: heroImage ? toRef(heroImage) : undefined, gallery: gallery.map(toRef), photos: images.map(toRef), toRef };
+  const toRef = (a: ProspectAsset): ImageRef => ({
+    src: a.path,
+    alt: a.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' '),
+    width: a.width,
+    height: a.height,
+  });
+  return {
+    heroVideo,
+    bgVideo,
+    heroImage: heroImage ? toRef(heroImage) : undefined,
+    gallery: gallery.map(toRef),
+    photos: images.map(toRef),
+    toRef,
+  };
 }
 
 /** Gerador determinístico de headlines a partir de serviços reais (várias estruturas). */
-export function generateHeadline(dna: BusinessDNA, rnd: Rnd, city?: string, name?: string): { headline: string; sub: string } {
+export function generateHeadline(
+  dna: BusinessDNA,
+  rnd: Rnd,
+  city?: string,
+  name?: string,
+): { headline: string; sub: string } {
   const s = dna.priorityServices.length ? dna.priorityServices : dna.keyServices;
-  const lc = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
-  const a = s[0] ? lc(s[0]) : '', b = s[1] ? lc(s[1]) : '', c = s[2] ? lc(s[2]) : '';
+  // minúscula inicial, exceto siglas (PPF, UV) e nomes com maiúsculas internas
+  const lc = (t: string) =>
+    /^[A-ZÀ-Ú]{2,}/.test(t) || /^[A-Z][a-z]*[A-Z]/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1);
+  const a = s[0] ? lc(s[0]) : '',
+    b = s[1] ? lc(s[1]) : '',
+    c = s[2] ? lc(s[2]) : '';
   const ind = lc(dna.subIndustry);
   const local = city ? ` em ${city}` : '';
   const structures: (() => string)[] = [];
-  if (a && b) structures.push(() => `Do ${a} à ${b}, *cuidado* em cada detalhe.`, () => `${cap(a)}, ${b}${c ? ` e ${c}` : ''} com *acabamento* de verdade.`, () => `${cap(a)} e ${b} feitos para *durar*.`);
-  if (a) structures.push(() => `${cap(a)} como tem que ser: *bem feito*${local}.`, () => `Quem entende de ${a} *não improvisa*.`);
-  if (dna.conversionGoal === 'agendamento') structures.push(() => `${cap(ind)}${local} com *hora marcada* e resultado.`);
+  if (a && b)
+    structures.push(
+      () => `Do ${a} à ${b}, *cuidado* em cada detalhe.`,
+      () => `${cap(a)}, ${b}${c ? ` e ${c}` : ''} com *acabamento* de verdade.`,
+      () => `${cap(a)} e ${b} feitos para *durar*.`,
+    );
+  if (a)
+    structures.push(
+      () => `${cap(a)} como tem que ser: *bem feito*${local}.`,
+      () => `Quem entende de ${a} *não improvisa*.`,
+    );
+  if (dna.conversionGoal === 'agendamento')
+    structures.push(() => `${cap(ind)}${local} com *hora marcada* e resultado.`);
   if (dna.conversionGoal === 'reserva') structures.push(() => `A mesa que ${city ?? 'a cidade'} *comenta*.`);
   if (dna.premiumLevel !== 'standard') structures.push(() => `${cap(ind)} em *outro nível*${local}.`);
-  structures.push(() => `${cap(ind)}${local}: ${lc(dna.positioning).replace(/\.$/, '')}*.*`.replace('*.*', '.'), () => `${name ? name + ': ' : ''}${lc(dna.positioning)}.`);
+  structures.push(
+    () => `${cap(ind)}${local}: ${lc(dna.positioning).replace(/\.$/, '')}*.*`.replace('*.*', '.'),
+    () => `${name ? name + ': ' : ''}${lc(dna.positioning)}.`,
+  );
   const headline = pick(structures, rnd)();
-  const subParts = [s.length >= 3 ? `${cap(a)}, ${b}, ${c}${s[3] ? ` e mais` : ''}.` : s.length ? `${cap(a)}${b ? ` e ${b}` : ''}.` : ''];
-  const goalLine = { orcamento: 'Orçamento rápido pelo WhatsApp.', agendamento: 'Agende pelo WhatsApp em poucos minutos.', reserva: 'Reserve sua mesa pelo WhatsApp.', contato: 'Fale com a gente e receba uma proposta.', compra: 'Peça pelo WhatsApp e receba em casa.', visita: 'Venha conhecer o espaço.' }[dna.conversionGoal];
-  const sub = [`${dna.positioning.charAt(0).toUpperCase() + dna.positioning.slice(1)}${local ? `, ${local.trim()}` : ''}.`, subParts[0], goalLine].filter(Boolean).join(' ');
+  const subParts = [
+    s.length >= 3
+      ? `${cap(a)}, ${b}, ${c}${s[3] ? ` e mais` : ''}.`
+      : s.length
+        ? `${cap(a)}${b ? ` e ${b}` : ''}.`
+        : '',
+  ];
+  const goalLine = {
+    orcamento: 'Orçamento rápido pelo WhatsApp.',
+    agendamento: 'Agende pelo WhatsApp em poucos minutos.',
+    reserva: 'Reserve sua mesa pelo WhatsApp.',
+    contato: 'Fale com a gente e receba uma proposta.',
+    compra: 'Peça pelo WhatsApp e receba em casa.',
+    visita: 'Venha conhecer o espaço.',
+  }[dna.conversionGoal];
+  const sub = [
+    `${dna.positioning.charAt(0).toUpperCase() + dna.positioning.slice(1)}${local ? `, ${local.trim()}` : ''}.`,
+    subParts[0],
+    goalLine,
+  ]
+    .filter(Boolean)
+    .join(' ');
   return { headline, sub };
   function cap(t: string) {
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -71,8 +137,16 @@ export function generateHeadline(dna: BusinessDNA, rnd: Rnd, city?: string, name
 /** CTA final contextual */
 export function finalCtaCopy(dna: BusinessDNA, name: string, rnd: Rnd): { title: string; text: string } {
   const byGoal: Record<BusinessDNA['conversionGoal'], string[]> = {
-    agendamento: ['Agende seu *serviço*.', `Seu ${/automotiv/i.test(dna.industry) ? 'carro' : 'momento'} merece esse *cuidado*.`, 'Garanta seu *horário*.'],
-    orcamento: ['Peça seu *orçamento* hoje.', `Fale com a *${name}*.`, 'Seu projeto começa com uma *conversa*.'],
+    agendamento: [
+      'Agende seu *serviço*.',
+      `Seu ${/automotiv/i.test(dna.industry) ? 'carro' : 'momento'} merece esse *cuidado*.`,
+      'Garanta seu *horário*.',
+    ],
+    orcamento: [
+      'Peça seu *orçamento* hoje.',
+      `Fale com a *${name}*.`,
+      'Seu projeto começa com uma *conversa*.',
+    ],
     reserva: ['Faça sua *reserva*.', 'Sua mesa está *esperando*.'],
     contato: ['Vamos conversar sobre o seu *projeto*?', `Fale com a *${name}*.`],
     compra: ['Peça agora pelo *WhatsApp*.', 'Encontre o que você *procura*.'],
@@ -90,30 +164,177 @@ export function finalCtaCopy(dna: BusinessDNA, name: string, rnd: Rnd): { title:
 }
 
 /** Composições por arquétipo; cada uma reage ao DNA/assets. */
-function composition(id: CompositionId, dna: BusinessDNA, plan: ReturnType<typeof planAssets>, dir: CreativeDirection, rnd: Rnd, creativity: CreativityLevel, locations: Location[], seed = 0): Blueprint[] {
+function composition(
+  id: CompositionId,
+  dna: BusinessDNA,
+  plan: ReturnType<typeof planAssets>,
+  dir: CreativeDirection,
+  rnd: Rnd,
+  creativity: CreativityLevel,
+  locations: Location[],
+  seed = 0,
+): Blueprint[] {
   const manyPhotos = plan.gallery.length >= 4;
   const hasVideo = !!plan.heroVideo;
   const hero = heroBlueprint(dir.hero as HeroFamily, dna, plan, rnd);
   const galleryVariant = manyPhotos ? pick(['filmstrip', 'editorial', 'stacked'] as const, rnd) : 'editorial';
   const headerVariant = ['cinematic', 'video', 'editorial'].includes(dir.hero) ? 'transparent' : 'default';
-  const servicesVariant = dna.keyServices.length >= 6 ? pick(['rows', 'minimal'] as const, rnd) : dna.contentDensity === 'low' ? 'alternating' : pick(['cards', 'rows'] as const, rnd);
-  const units: Blueprint[] = locations.length > 1 ? [{ type: 'locations', slot: 'locations', tone: 'alt' }] : [];
+  const servicesVariant =
+    dna.keyServices.length >= 6
+      ? pick(['rows', 'minimal'] as const, rnd)
+      : dna.contentDensity === 'low'
+        ? 'alternating'
+        : pick(['cards', 'rows'] as const, rnd);
+  const units: Blueprint[] =
+    locations.length > 1 ? [{ type: 'locations', slot: 'locations', tone: 'alt' }] : [];
   const bold = creativity === 'ousado';
-  const T = (type: Blueprint['type'], variant?: string, slot?: string, tone?: Blueprint['tone']): Blueprint => ({ type, variant, slot, tone });
+  const T = (
+    type: Blueprint['type'],
+    variant?: string,
+    slot?: string,
+    tone?: Blueprint['tone'],
+  ): Blueprint => ({ type, variant, slot, tone });
   const base: Record<CompositionId, Blueprint[]> = {
-    'automotive-showcase': [T('header', headerVariant), hero, T('marquee', 'band'), T('services', 'rows', 'services'), manyPhotos ? T('gallery', galleryVariant, 'gallery', 'alt') : T('horizontal-scroll', undefined, 'hscroll', 'alt'), plan.gallery.length >= 2 ? T('before-after', undefined, 'beforeAfter') : T('benefits', 'numbered', 'benefits'), T('numbers', 'big', 'stats', 'alt'), T('testimonials', 'big', 'testimonials'), ...units, T('cta', 'full', 'finalCta'), T('contact', 'map', 'contact'), T('footer', 'big'), T('whatsapp-float'), T('sticky-cta')],
-    'editorial-portfolio': [T('header', headerVariant), hero, T('manifesto', 'left', 'manifesto'), manyPhotos ? T('projects', 'list', 'projects') : T('services', 'alternating', 'services'), T('about', 'stacked', 'about', 'alt'), manyPhotos ? T('gallery', 'editorial', 'gallery') : T('numbers', 'grid', 'stats'), T('process', 'timeline', 'process', 'alt'), T('testimonials', 'big', 'testimonials'), ...units, T('cta', 'band', 'finalCta', 'accent'), T('contact', 'form', 'contact'), T('footer', 'big'), T('whatsapp-float')],
-    'trust-booking': [T('header', 'default'), hero, T('services', 'cards', 'services', 'alt'), T('benefits', 'grid', 'benefits'), T('about', 'image-left', 'about', 'alt'), T('team', 'grid', 'team'), T('numbers', 'cards', 'stats', 'alt'), T('faq', 'split', 'faq'), ...units, T('cta', 'card', 'finalCta'), T('contact', 'form', 'contact', 'alt'), T('footer', 'columns'), T('whatsapp-float'), T('sticky-cta')],
-    'local-conversion': [T('header', 'default'), hero, T('benefits', 'grid', 'benefits', 'alt'), T('services', servicesVariant, 'services'), manyPhotos ? T('gallery', galleryVariant, 'gallery', 'alt') : T('about', 'split', 'about', 'alt'), T('numbers', 'inline', 'stats'), T('testimonials', 'cards', 'testimonials', 'alt'), T('faq', 'stacked', 'faq'), ...units, T('cta', 'card', 'finalCta'), T('contact', 'map', 'contact', 'alt'), T('footer', 'columns'), T('whatsapp-float'), T('sticky-cta')],
-    'catalog-sales': [T('header', 'default'), hero, T('marquee', 'band'), T('catalog', 'featured', 'catalog'), T('benefits', 'list', 'benefits', 'alt'), T('products', 'grid-4', 'products'), T('testimonials', 'slider', 'testimonials', 'alt'), T('comparison', undefined, 'comparison'), T('faq', 'stacked', 'faq', 'alt'), ...units, T('cta', 'card', 'finalCta'), T('contact', 'simple', 'contact', 'alt'), T('footer', 'columns'), T('whatsapp-float'), T('sticky-cta')],
-    'cinematic-story': [T('header', headerVariant), hero, T('manifesto', 'center', 'manifesto'), T('services', 'alternating', 'services', 'alt'), manyPhotos ? T('gallery', galleryVariant, 'gallery') : T('about', 'stack-media', 'about'), T('numbers', 'big', 'stats', 'alt'), T('testimonials', 'big', 'testimonials'), T('process', 'columns', 'process', 'alt'), ...units, T('cta', 'full', 'finalCta'), T('contact', 'form', 'contact'), T('footer', 'big'), T('whatsapp-float'), T('sticky-cta')],
-    'technical-grid': [T('header', 'default'), hero, T('services', 'minimal', 'services'), T('numbers', 'inline', 'stats', 'alt'), T('benefits', 'numbered', 'benefits'), manyPhotos ? T('portfolio-masonry', undefined, 'projects', 'alt') : T('projects', 'grid', 'projects', 'alt'), T('process', 'timeline', 'process'), T('comparison', undefined, 'comparison', 'alt'), T('testimonials', 'cards', 'testimonials'), ...units, T('cta', 'band', 'finalCta', 'accent'), T('contact', 'form', 'contact'), T('footer', 'columns'), T('whatsapp-float'), T('sticky-cta')],
-    'minimal-luxury': [T('header', headerVariant), hero, T('manifesto', 'center', 'manifesto'), T('services', 'rows', 'services'), manyPhotos ? T('gallery', 'stacked', 'gallery', 'alt') : T('about', 'stack-media', 'about', 'alt'), T('testimonials', 'big', 'testimonials'), T('numbers', 'grid', 'stats', 'alt'), ...units, T('cta', 'full', 'finalCta'), T('contact', 'simple', 'contact'), T('footer', 'big'), T('whatsapp-float')],
+    'automotive-showcase': [
+      T('header', headerVariant),
+      hero,
+      T('marquee', 'band'),
+      T('services', 'rows', 'services'),
+      manyPhotos
+        ? T('gallery', galleryVariant, 'gallery', 'alt')
+        : T('horizontal-scroll', undefined, 'hscroll', 'alt'),
+      plan.gallery.length >= 2
+        ? T('before-after', undefined, 'beforeAfter')
+        : T('benefits', 'numbered', 'benefits'),
+      T('numbers', 'big', 'stats', 'alt'),
+      T('testimonials', 'big', 'testimonials'),
+      ...units,
+      T('cta', 'full', 'finalCta'),
+      T('contact', 'map', 'contact'),
+      T('footer', 'big'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'editorial-portfolio': [
+      T('header', headerVariant),
+      hero,
+      T('manifesto', 'left', 'manifesto'),
+      manyPhotos ? T('projects', 'list', 'projects') : T('services', 'alternating', 'services'),
+      T('about', 'stacked', 'about', 'alt'),
+      manyPhotos ? T('gallery', 'editorial', 'gallery') : T('numbers', 'grid', 'stats'),
+      T('process', 'timeline', 'process', 'alt'),
+      T('testimonials', 'big', 'testimonials'),
+      ...units,
+      T('cta', 'band', 'finalCta', 'accent'),
+      T('contact', 'form', 'contact'),
+      T('footer', 'big'),
+      T('whatsapp-float'),
+    ],
+    'trust-booking': [
+      T('header', 'default'),
+      hero,
+      T('services', 'cards', 'services', 'alt'),
+      T('benefits', 'grid', 'benefits'),
+      T('about', 'image-left', 'about', 'alt'),
+      T('team', 'grid', 'team'),
+      T('numbers', 'cards', 'stats', 'alt'),
+      T('faq', 'split', 'faq'),
+      ...units,
+      T('cta', 'card', 'finalCta'),
+      T('contact', 'form', 'contact', 'alt'),
+      T('footer', 'columns'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'local-conversion': [
+      T('header', 'default'),
+      hero,
+      T('benefits', 'grid', 'benefits', 'alt'),
+      T('services', servicesVariant, 'services'),
+      manyPhotos ? T('gallery', galleryVariant, 'gallery', 'alt') : T('about', 'split', 'about', 'alt'),
+      T('numbers', 'inline', 'stats'),
+      T('testimonials', 'cards', 'testimonials', 'alt'),
+      T('faq', 'stacked', 'faq'),
+      ...units,
+      T('cta', 'card', 'finalCta'),
+      T('contact', 'map', 'contact', 'alt'),
+      T('footer', 'columns'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'catalog-sales': [
+      T('header', 'default'),
+      hero,
+      T('marquee', 'band'),
+      T('catalog', 'featured', 'catalog'),
+      T('benefits', 'list', 'benefits', 'alt'),
+      T('products', 'grid-4', 'products'),
+      T('testimonials', 'slider', 'testimonials', 'alt'),
+      T('comparison', undefined, 'comparison'),
+      T('faq', 'stacked', 'faq', 'alt'),
+      ...units,
+      T('cta', 'card', 'finalCta'),
+      T('contact', 'simple', 'contact', 'alt'),
+      T('footer', 'columns'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'cinematic-story': [
+      T('header', headerVariant),
+      hero,
+      T('manifesto', 'center', 'manifesto'),
+      T('services', 'alternating', 'services', 'alt'),
+      manyPhotos ? T('gallery', galleryVariant, 'gallery') : T('about', 'stack-media', 'about'),
+      T('numbers', 'big', 'stats', 'alt'),
+      T('testimonials', 'big', 'testimonials'),
+      T('process', 'columns', 'process', 'alt'),
+      ...units,
+      T('cta', 'full', 'finalCta'),
+      T('contact', 'form', 'contact'),
+      T('footer', 'big'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'technical-grid': [
+      T('header', 'default'),
+      hero,
+      T('services', 'minimal', 'services'),
+      T('numbers', 'inline', 'stats', 'alt'),
+      T('benefits', 'numbered', 'benefits'),
+      manyPhotos
+        ? T('portfolio-masonry', undefined, 'projects', 'alt')
+        : T('projects', 'grid', 'projects', 'alt'),
+      T('process', 'timeline', 'process'),
+      T('comparison', undefined, 'comparison', 'alt'),
+      T('testimonials', 'cards', 'testimonials'),
+      ...units,
+      T('cta', 'band', 'finalCta', 'accent'),
+      T('contact', 'form', 'contact'),
+      T('footer', 'columns'),
+      T('whatsapp-float'),
+      T('sticky-cta'),
+    ],
+    'minimal-luxury': [
+      T('header', headerVariant),
+      hero,
+      T('manifesto', 'center', 'manifesto'),
+      T('services', 'rows', 'services'),
+      manyPhotos ? T('gallery', 'stacked', 'gallery', 'alt') : T('about', 'stack-media', 'about', 'alt'),
+      T('testimonials', 'big', 'testimonials'),
+      T('numbers', 'grid', 'stats', 'alt'),
+      ...units,
+      T('cta', 'full', 'finalCta'),
+      T('contact', 'simple', 'contact'),
+      T('footer', 'big'),
+      T('whatsapp-float'),
+    ],
   };
   let list = base[id];
   // densidade: conteúdo baixo remove uma seção informativa; alto adiciona FAQ
-  if (dna.contentDensity === 'low') list = list.filter((b, i) => !(b.type === 'faq' && i > 4) && b.type !== 'comparison');
-  if (dna.contentDensity === 'high' && !list.some((b) => b.type === 'faq')) list.splice(list.length - 4, 0, T('faq', 'stacked', 'faq'));
+  if (dna.contentDensity === 'low')
+    list = list.filter((b, i) => !(b.type === 'faq' && i > 4) && b.type !== 'comparison');
+  if (dna.contentDensity === 'high' && !list.some((b) => b.type === 'faq'))
+    list.splice(list.length - 4, 0, T('faq', 'stacked', 'faq'));
   if (!hasVideo && hero.type === 'hero-video') list[1] = heroBlueprint('cinematic', dna, plan, rnd);
   if (bold && !list.some((b) => b.type === 'marquee')) list.splice(2, 0, T('marquee', 'outline'));
   return remix(list, rnd, seed);
@@ -143,7 +364,8 @@ function remix(list: Blueprint[], rnd: Rnd, seed: number): Blueprint[] {
     if (alts.length) b.variant = pick(alts, rnd);
   }
   // 2) inverte duas seções do miolo (entre hero+1 e cta-1), nunca header/hero/footer/float
-  const lo = 3, hi = out.findIndex((b) => b.type === 'cta') - 1;
+  const lo = 3,
+    hi = out.findIndex((b) => b.type === 'cta') - 1;
   if (hi - lo >= 2 && rnd() < 0.7) {
     const i = lo + Math.floor(rnd() * (hi - lo));
     const j = Math.min(hi, i + 1);
@@ -155,21 +377,39 @@ function remix(list: Blueprint[], rnd: Rnd, seed: number): Blueprint[] {
   return out;
 }
 
-function heroBlueprint(family: HeroFamily, dna: BusinessDNA, plan: ReturnType<typeof planAssets>, rnd: Rnd): Blueprint {
+function heroBlueprint(
+  family: HeroFamily,
+  dna: BusinessDNA,
+  plan: ReturnType<typeof planAssets>,
+  rnd: Rnd,
+): Blueprint {
   const showServices = dna.priorityServices.length >= 3;
   switch (family) {
     case 'video':
-      return plan.heroVideo ? { type: 'hero-video', variant: showServices ? 'bottom' : 'center', slot: 'hero' } : { type: 'hero-fullscreen', variant: 'bottom', slot: 'hero' };
+      return plan.heroVideo
+        ? { type: 'hero-video', variant: showServices ? 'bottom' : 'center', slot: 'hero' }
+        : { type: 'hero-fullscreen', variant: 'bottom', slot: 'hero' };
     case 'cinematic':
       return { type: 'hero-fullscreen', variant: pick(['bottom', 'center'] as const, rnd), slot: 'hero' };
     case 'editorial':
-      return { type: 'hero-editorial', variant: plan.photos.length ? pick(['statement', 'offset'] as const, rnd) : 'statement', slot: 'hero' };
+      return {
+        type: 'hero-editorial',
+        variant: plan.photos.length ? pick(['statement', 'offset'] as const, rnd) : 'statement',
+        slot: 'hero',
+      };
     case 'showcase':
       return { type: 'hero-showcase', variant: showServices ? 'services' : 'media', slot: 'hero' };
     case 'layered':
-      return plan.photos.length >= 2 ? { type: 'hero-layered', slot: 'hero' } : { type: 'hero-split', variant: 'image-right', slot: 'hero' };
+      return plan.photos.length >= 2
+        ? { type: 'hero-layered', slot: 'hero' }
+        : { type: 'hero-split', variant: 'image-right', slot: 'hero' };
     case 'numbers':
-      return { type: 'hero-split', variant: pick(['image-right', 'image-left'] as const, rnd), slot: 'hero', props: { withStats: true } };
+      return {
+        type: 'hero-split',
+        variant: pick(['image-right', 'image-left'] as const, rnd),
+        slot: 'hero',
+        props: { withStats: true },
+      };
     case 'conversion':
       return { type: 'hero', variant: pick(['split', 'stacked'] as const, rnd), slot: 'hero' };
     default:
@@ -185,7 +425,8 @@ export function fingerprintOf(bps: Blueprint[], theme: string, motion: string): 
 export function similarity(a: string, b: string): number {
   const [ta, ma, ...sa] = a.split('|');
   const [tb, mb, ...sb] = b.split('|');
-  const A = new Set(sa), B = new Set(sb);
+  const A = new Set(sa),
+    B = new Set(sb);
   const inter = [...A].filter((x) => B.has(x)).length;
   const jacc = inter / Math.max(1, new Set([...A, ...B]).size);
   let order = 0;
@@ -200,16 +441,35 @@ export function composeSite(input: ComposeInput): ComposeResult {
   const rnd = seededRandom(hashString(`${input.name}|${direction.id}|${seed}`));
   const plan = planAssets(input.assets ?? []);
   const locations = input.locations ?? [];
-  const blueprints = composition(direction.composition as CompositionId, dna, plan, direction, rnd, input.creativity ?? 'equilibrado', locations, seed);
+  const blueprints = composition(
+    direction.composition as CompositionId,
+    dna,
+    plan,
+    direction,
+    rnd,
+    input.creativity ?? 'equilibrado',
+    locations,
+    seed,
+  );
   const { headline, sub } = generateHeadline(dna, rnd, input.city, input.name);
   const final = finalCtaCopy(dna, input.name, rnd);
   const video = plan.heroVideo;
   const videoAnalysis = video?.analysis as VideoAnalysis | undefined;
   const themeOverrides: SiteConfig['theme']['overrides'] = {
-    colors: direction.palette.bg || direction.palette.accent ? { bg: direction.palette.bg, accent: direction.palette.accent, text: direction.palette.text, accentContrast: contrastRatio('#000000', direction.palette.accent) >= 4.5 ? '#000000' : '#ffffff' } : undefined,
+    colors:
+      direction.palette.bg || direction.palette.accent
+        ? {
+            bg: direction.palette.bg,
+            accent: direction.palette.accent,
+            text: direction.palette.text,
+            accentContrast: contrastRatio('#000000', direction.palette.accent) >= 4.5 ? '#000000' : '#ffffff',
+          }
+        : undefined,
     fonts: { display: direction.typography.display, body: direction.typography.body },
   };
-  const services: { title: string; description?: string }[] = (input.services?.length ? input.services : dna.keyServices.map((t) => ({ title: t }))).map((s: { title: string; description?: string }) => ({ title: s.title, description: s.description }));
+  const services: { title: string; description?: string }[] = (
+    input.services?.length ? input.services : dna.keyServices.map((t) => ({ title: t }))
+  ).map((s: { title: string; description?: string }) => ({ title: s.title, description: s.description }));
   const { config } = generateSiteConfig({
     ...input,
     services,
@@ -222,18 +482,35 @@ export function composeSite(input: ComposeInput): ComposeResult {
     hero: {
       headline,
       subheadline: sub,
+      eyebrow: `${dna.subIndustry}${input.city ? ` em ${input.city}` : ''}`,
       primaryCta: dna.primaryCTA,
       secondaryCta: dna.secondaryCTA,
       image: plan.heroImage,
-      video: video ? { src: videoAnalysis?.optimized ?? video.path, poster: video.poster, duration: videoAnalysis?.duration } : undefined,
+      video: video
+        ? {
+            src: videoAnalysis?.optimized ?? video.path,
+            poster: video.poster,
+            duration: videoAnalysis?.duration,
+          }
+        : undefined,
       services: dna.priorityServices.slice(0, 4),
     },
     finalCta: final,
     locations,
     seed,
   });
-  const assetsUsed = uniq([video?.path, plan.heroImage?.src, ...plan.gallery.slice(0, 12).map((g) => g.src)].filter(Boolean) as string[]);
-  return { config, blueprints, fingerprint: fingerprintOf(blueprints, direction.theme, direction.motion), assetsUsed, headline };
+  const assetsUsed = uniq(
+    [video?.path, plan.heroImage?.src, ...plan.gallery.slice(0, 12).map((g) => g.src)].filter(
+      Boolean,
+    ) as string[],
+  );
+  return {
+    config,
+    blueprints,
+    fingerprint: fingerprintOf(blueprints, direction.theme, direction.motion),
+    assetsUsed,
+    headline,
+  };
 }
 
 /** Reaplica valores bloqueados (caminhos JSON "a.b.0.c") de uma config antiga sobre a nova. */
@@ -241,7 +518,8 @@ export function applyLocks(next: SiteConfig, prev: unknown, locks: string[] = []
   const out = JSON.parse(JSON.stringify(next));
   for (const p of locks) {
     const parts = p.split('.');
-    let src: any = prev, dst: any = out;
+    let src: any = prev,
+      dst: any = out;
     for (let i = 0; i < parts.length - 1; i++) {
       src = src?.[parts[i]];
       if (dst[parts[i]] === undefined) dst[parts[i]] = /^\d+$/.test(parts[i + 1]) ? [] : {};

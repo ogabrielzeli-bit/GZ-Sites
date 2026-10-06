@@ -118,6 +118,13 @@ function AgencyTab({ s }: { s: Settings }) {
             <Input value={f.locale} onChange={set('locale')} className="w-28" />
           </div>
         </Field>
+        <Field label="Criatividade (motor V2)" hint="Define quão ousadas são as direções propostas.">
+          <Select value={f.creativity ?? 'equilibrado'} onChange={set('creativity')}>
+            <option value="conservador">Conservador — clássico e seguro</option>
+            <option value="equilibrado">Equilibrado (padrão)</option>
+            <option value="ousado">Ousado — contrastes e composições fortes</option>
+          </Select>
+        </Field>
         <Field label="Tema padrão (projetos avulsos)" hint="Prévias de prospects usam o preset do segmento.">
           <Select value={f.defaultTheme} onChange={set('defaultTheme')}>
             {THEME_IDS.map((t) => (

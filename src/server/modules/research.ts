@@ -7,13 +7,28 @@ import type { Prospect } from '@shared/schemas';
 import type { Research, ResearchFacts, ResearchSource, Location } from '@shared/v2';
 import { instagramUrl, normalizeUrl, uniq } from '@shared/utils';
 
-const SERVICE_HINTS = /(lavagem|higieniza|polimento|insulfilm|detalhamento|vitrifica|cristaliza|instala|manuten|reparo|conserto|revis|troca|projeto|reforma|constru|consulta|exame|tratamento|limpeza|corte|barba|design|avalia|aluguel|venda|loca|entrega|servi[çc]o|especialidade|atendimento|aplica|pintura|solda|estrutura|port[ãa]o|esquadria|cobertura|massagem|depila|hidrata|laser|clareamento|implante|ortodont|pediatr|cardio|dermato|fisioterap|nutri|psic|advocacia|trabalhista|civil|empresarial|imobili|financiamento|buffet|evento|casamento|almo[çc]o|jantar|delivery|reserva)/i;
-const HOURS_RE = /\b(seg|ter|qua|qui|sex|s[áa]b|dom|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)[^\n]{0,40}?\d{1,2}[:h]\d{0,2}\s?(?:[àa-]s?|-|até)\s?\d{1,2}[:h]?\d{0,2}/gi;
+const SERVICE_HINTS =
+  /(lavagem|higieniza|polimento|insulfilm|detalhamento|vitrifica|cristaliza|instala|manuten|reparo|conserto|revis|troca|projeto|reforma|constru|consulta|exame|tratamento|limpeza|corte|barba|design|avalia|aluguel|venda|loca|entrega|servi[çc]o|especialidade|atendimento|aplica|pintura|solda|estrutura|port[ãa]o|esquadria|cobertura|massagem|depila|hidrata|laser|clareamento|implante|ortodont|pediatr|cardio|dermato|fisioterap|nutri|psic|advocacia|trabalhista|civil|empresarial|imobili|financiamento|buffet|evento|casamento|almo[çc]o|jantar|delivery|reserva)/i;
+const HOURS_RE =
+  /\b(seg|ter|qua|qui|sex|s[áa]b|dom|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)[^\n]{0,40}?\d{1,2}[:h]\d{0,2}\s?(?:[àa-]s?|-|até)\s?\d{1,2}[:h]?\d{0,2}/gi;
 const PHONE_RE = /\(?\b\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b/g;
-const ADDRESS_RE = /\b(Rua|Av\.?|Avenida|Alameda|Travessa|Rodovia|Estrada|Praça|R\.)\s[^\n,;|]{4,80}(?:,\s?\d{1,6})?[^\n|]{0,80}/g;
-const DIFF_HINTS = /(garantia|anos de experi[êe]ncia|desde \d{4}|certificad|premiad|especializad|atendimento 24|agendamento online|estacionamento|or[çc]amento gr[áa]tis|entrega gr[áa]tis|parcel|primeira linha|equipe pr[óo]pria|fabrica[çc][ãa]o pr[óo]pria|leva e traz|hora marcada)/i;
+const ADDRESS_RE =
+  /\b(Rua|Av\.?|Avenida|Alameda|Travessa|Rodovia|Estrada|Praça|R\.)\s[^\n,;|]{4,80}(?:,\s?\d{1,6})?[^\n|]{0,80}/g;
+const DIFF_HINTS =
+  /(garantia|anos de experi[êe]ncia|desde \d{4}|certificad|premiad|especializad|atendimento 24|agendamento online|estacionamento|or[çc]amento gr[áa]tis|entrega gr[áa]tis|parcel|primeira linha|equipe pr[óo]pria|fabrica[çc][ãa]o pr[óo]pria|leva e traz|hora marcada)/i;
 
-const emptyFacts = (): ResearchFacts => ({ services: [], positioning: [], language: [], locations: [], hours: [], differentials: [], contentTypes: [], colors: [], socials: [], phones: [] });
+const emptyFacts = (): ResearchFacts => ({
+  services: [],
+  positioning: [],
+  language: [],
+  locations: [],
+  hours: [],
+  differentials: [],
+  contentTypes: [],
+  colors: [],
+  socials: [],
+  phones: [],
+});
 
 function clean(s: string) {
   return s.replace(/\s+/g, ' ').trim();
@@ -49,16 +64,28 @@ function rgbToHex(c: string): string | null {
 function extractFacts(data: any, facts: ResearchFacts, found: Set<string>) {
   const body: string = data.body || '';
   // posicionamento: title / description / h1
-  for (const t of [data.title, data.description, ...(data.heads || []).slice(0, 2)]) if (t && clean(t).length > 8) facts.positioning.push(clean(t).slice(0, 160));
+  for (const t of [data.title, data.description, ...(data.heads || []).slice(0, 2)])
+    if (t && clean(t).length > 8) facts.positioning.push(clean(t).slice(0, 160));
   if (facts.positioning.length) found.add('posicionamento');
   // serviços: headings e itens com termos de serviço
-  const svc = [...(data.heads || []), ...(data.items || [])].map(clean).filter((t) => t.length >= 4 && t.length <= 60 && SERVICE_HINTS.test(t) && !/^(home|in[íi]cio|contato|sobre|quem somos|blog)$/i.test(t));
+  const svc = [...(data.heads || []), ...(data.items || [])]
+    .map(clean)
+    .filter(
+      (t) =>
+        t.length >= 4 &&
+        t.length <= 60 &&
+        SERVICE_HINTS.test(t) &&
+        !/^(home|in[íi]cio|contato|sobre|quem somos|blog)$/i.test(t),
+    );
   if (svc.length) {
     facts.services.push(...uniq(svc.map(titleCase)).slice(0, 20));
     found.add('serviços');
   }
   // diferenciais
-  const diffs = body.split(/\n|\.\s/).map(clean).filter((l) => l.length > 10 && l.length < 140 && DIFF_HINTS.test(l));
+  const diffs = body
+    .split(/\n|\.\s/)
+    .map(clean)
+    .filter((l) => l.length > 10 && l.length < 140 && DIFF_HINTS.test(l));
   if (diffs.length) {
     facts.differentials.push(...uniq(diffs).slice(0, 8));
     found.add('diferenciais');
@@ -78,15 +105,57 @@ function extractFacts(data: any, facts: ResearchFacts, found: Set<string>) {
   // endereços / unidades
   const addrs = uniq((body.match(ADDRESS_RE) || []).map(clean)).slice(0, 5);
   if (addrs.length) {
-    for (const a of addrs) facts.locations.push({ name: '', address: a, city: '', state: '', phone: '', whatsapp: '', mapsUrl: '', openingHours: '' });
+    for (const a of addrs)
+      facts.locations.push({
+        name: '',
+        address: a,
+        city: '',
+        state: '',
+        phone: '',
+        whatsapp: '',
+        mapsUrl: '',
+        openingHours: '',
+      });
     found.add(addrs.length > 1 ? 'unidades' : 'localização');
   }
   // linguagem da marca: palavras recorrentes (sem stopwords)
   const words = body.toLowerCase().match(/\b[a-záàâãéêíóôõúç]{6,}\b/g) || [];
-  const stop = new Set(['sobre', 'contato', 'nossos', 'nossas', 'todos', 'todas', 'através', 'também', 'quando', 'empresa', 'serviços', 'serviço', 'porque', 'mesmo', 'ainda', 'sempre', 'podemos', 'melhor', 'muito', 'entre', 'estão', 'cliente', 'clientes', 'direitos', 'reservados', 'política', 'privacidade']);
+  const stop = new Set([
+    'sobre',
+    'contato',
+    'nossos',
+    'nossas',
+    'todos',
+    'todas',
+    'através',
+    'também',
+    'quando',
+    'empresa',
+    'serviços',
+    'serviço',
+    'porque',
+    'mesmo',
+    'ainda',
+    'sempre',
+    'podemos',
+    'melhor',
+    'muito',
+    'entre',
+    'estão',
+    'cliente',
+    'clientes',
+    'direitos',
+    'reservados',
+    'política',
+    'privacidade',
+  ]);
   const freq = new Map<string, number>();
   for (const w of words) if (!stop.has(w)) freq.set(w, (freq.get(w) ?? 0) + 1);
-  const top = Array.from(freq.entries()).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([w]) => w);
+  const top = Array.from(freq.entries())
+    .filter(([, n]) => n >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([w]) => w);
   if (top.length) {
     facts.language.push(...top);
     found.add('linguagem');
@@ -102,20 +171,29 @@ function extractFacts(data: any, facts: ResearchFacts, found: Set<string>) {
     found.add('tipos de conteúdo');
   }
   // cores da identidade (fundos/texto de header, botões)
-  const cols = uniq((data.styles || []).map(rgbToHex).filter(Boolean) as string[]).filter((c) => !['#ffffff', '#000000'].includes(c)).slice(0, 5);
+  const cols = uniq((data.styles || []).map(rgbToHex).filter(Boolean) as string[])
+    .filter((c) => !['#ffffff', '#000000'].includes(c))
+    .slice(0, 5);
   if (cols.length) {
     facts.colors.push(...cols);
     found.add('cores');
   }
   // redes sociais
-  const socials = uniq(((data.links || []) as string[]).filter((l: string) => /instagram\.com|facebook\.com|tiktok\.com|youtube\.com|linkedin\.com|wa\.me|whatsapp/i.test(l))).slice(0, 8);
+  const socials = uniq(
+    ((data.links || []) as string[]).filter((l: string) =>
+      /instagram\.com|facebook\.com|tiktok\.com|youtube\.com|linkedin\.com|wa\.me|whatsapp/i.test(l),
+    ),
+  ).slice(0, 8);
   if (socials.length) {
     facts.socials.push(...socials);
     found.add('redes sociais');
   }
 }
 
-export async function researchProspect(p: Pick<Prospect, 'website' | 'instagram' | 'links' | 'name'>, opts: { timeoutMs?: number } = {}): Promise<Research> {
+export async function researchProspect(
+  p: Pick<Prospect, 'website' | 'instagram' | 'links' | 'name'>,
+  opts: { timeoutMs?: number } = {},
+): Promise<Research> {
   const timeout = opts.timeoutMs ?? 15000;
   const facts = emptyFacts();
   const sources: ResearchSource[] = [];
@@ -127,13 +205,21 @@ export async function researchProspect(p: Pick<Prospect, 'website' | 'instagram'
   for (const l of p.links ?? []) {
     const u = normalizeUrl(l.url);
     if (!u) continue;
-    targets.push({ type: /google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(u) ? 'maps' : 'link', url: u });
+    targets.push({
+      type: /google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(u) ? 'maps' : 'link',
+      url: u,
+    });
   }
   if (!targets.length) return { researchedAt: new Date().toISOString(), sources: [], facts };
 
   const browser = await chromium.launch({ args: ['--disable-dev-shm-usage'] });
   try {
-    const ctx = await browser.newContext({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36', locale: 'pt-BR', ignoreHTTPSErrors: true });
+    const ctx = await browser.newContext({
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36',
+      locale: 'pt-BR',
+      ignoreHTTPSErrors: true,
+    });
     for (const t of targets.slice(0, 6)) {
       const found = new Set<string>();
       const page = await ctx.newPage();
@@ -161,7 +247,13 @@ export async function researchProspect(p: Pick<Prospect, 'website' | 'instagram'
         } else extractFacts(data, facts, found);
         sources.push({ type: t.type, url: t.url, ok: true, found: Array.from(found) });
       } catch (e) {
-        sources.push({ type: t.type, url: t.url, ok: false, error: (e as Error).message.slice(0, 120), found: [] });
+        sources.push({
+          type: t.type,
+          url: t.url,
+          ok: false,
+          error: (e as Error).message.slice(0, 120),
+          found: [],
+        });
       } finally {
         await page.close().catch(() => {});
       }
@@ -169,7 +261,8 @@ export async function researchProspect(p: Pick<Prospect, 'website' | 'instagram'
   } finally {
     await browser.close().catch(() => {});
   }
-  for (const k of Object.keys(facts) as (keyof ResearchFacts)[]) if (k !== 'locations') (facts as any)[k] = uniq((facts as any)[k]);
+  for (const k of Object.keys(facts) as (keyof ResearchFacts)[])
+    if (k !== 'locations') (facts as any)[k] = uniq((facts as any)[k]);
   facts.locations = dedupeLocations(facts.locations);
   return { researchedAt: new Date().toISOString(), sources, facts };
 }
@@ -185,7 +278,13 @@ function dedupeLocations(list: Location[]): Location[] {
 }
 
 /** Resumo legível para o painel/mensagens */
-export function summarizeResearch(r: Research | null | undefined): { found: string[]; sources: { type: string; url: string; ok: boolean }[] } {
+export function summarizeResearch(r: Research | null | undefined): {
+  found: string[];
+  sources: { type: string; url: string; ok: boolean }[];
+} {
   if (!r) return { found: [], sources: [] };
-  return { found: uniq(r.sources.flatMap((s) => s.found)), sources: r.sources.map((s) => ({ type: s.type, url: s.url, ok: s.ok })) };
+  return {
+    found: uniq(r.sources.flatMap((s) => s.found)),
+    sources: r.sources.map((s) => ({ type: s.type, url: s.url, ok: s.ok })),
+  };
 }

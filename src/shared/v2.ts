@@ -60,7 +60,10 @@ export const LocationSchema = z.object({
 });
 export type Location = z.infer<typeof LocationSchema>;
 
-export const ServiceInput = z.object({ title: z.string().max(120), description: z.string().max(400).default('') });
+export const ServiceInput = z.object({
+  title: z.string().max(120),
+  description: z.string().max(400).default(''),
+});
 
 // ---------- Pesquisa de fontes públicas ----------
 export interface ResearchSource {
@@ -89,8 +92,10 @@ export interface Research {
 }
 
 // ---------- BusinessDNA ----------
-export type VisualPersonality = 'premium' | 'performance' | 'editorial' | 'clean' | 'warm' | 'bold' | 'technical' | 'minimal';
-export type MotionPersonality = 'elegant' | 'performance' | 'technical' | 'editorial' | 'playful' | 'minimal' | 'cinematic';
+export type VisualPersonality =
+  'premium' | 'performance' | 'editorial' | 'clean' | 'warm' | 'bold' | 'technical' | 'minimal';
+export type MotionPersonality =
+  'elegant' | 'performance' | 'technical' | 'editorial' | 'playful' | 'minimal' | 'cinematic';
 export type ContentDensity = 'low' | 'medium' | 'high';
 export type PremiumLevel = 'standard' | 'premium' | 'luxury';
 
@@ -104,7 +109,13 @@ export interface BusinessDNA {
   conversionGoal: 'orcamento' | 'agendamento' | 'reserva' | 'contato' | 'compra' | 'visita';
   keyServices: string[];
   priorityServices: string[];
-  assetProfile: { logo: boolean; photos: number; strongPhotos: number; videos: number; quality: 'none' | 'low' | 'medium' | 'high' };
+  assetProfile: {
+    logo: boolean;
+    photos: number;
+    strongPhotos: number;
+    videos: number;
+    quality: 'none' | 'low' | 'medium' | 'high';
+  };
   brandColors: string[];
   brandMode: 'dark' | 'light' | 'unknown';
   recommendedTypography: { display: string; body: string };

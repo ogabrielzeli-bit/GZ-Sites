@@ -157,7 +157,12 @@ export class ProspectRepo {
 
   update(
     id: string,
-    patch: Partial<ProspectInput> & { logoPath?: string | null; photos?: Prospect['photos']; research?: Prospect['research']; creative?: Prospect['creative'] },
+    patch: Partial<ProspectInput> & {
+      logoPath?: string | null;
+      photos?: Prospect['photos'];
+      research?: Prospect['research'];
+      creative?: Prospect['creative'];
+    },
   ): Prospect {
     const current = this.get(id);
     if (!current) throw new Error('Prospect não encontrado');
@@ -319,7 +324,18 @@ export class PreviewRepo {
   create(p: Omit<Preview, 'createdAt' | 'url' | 'meta' | 'published'> & { meta?: Preview['meta'] }): Preview {
     this.db.run(
       `INSERT INTO previews (id,prospect_id,theme,segment,layout_variant,config,path,notes,meta,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-      [p.id, p.prospectId, p.theme, p.segment, p.layoutVariant, j(p.config), p.path, p.notes, j(p.meta ?? {}), now()],
+      [
+        p.id,
+        p.prospectId,
+        p.theme,
+        p.segment,
+        p.layoutVariant,
+        j(p.config),
+        p.path,
+        p.notes,
+        j(p.meta ?? {}),
+        now(),
+      ],
     );
     return this.get(p.id)!;
   }
@@ -328,12 +344,10 @@ export class PreviewRepo {
     return r ? rowToPreview(r) : undefined;
   }
   updateConfig(id: string, config: unknown, notes?: string, meta?: Preview['meta']) {
-    this.db.run('UPDATE previews SET config = ?, notes = COALESCE(?, notes), meta = COALESCE(?, meta) WHERE id = ?', [
-      j(config),
-      notes ?? null,
-      meta ? j(meta) : null,
-      id,
-    ]);
+    this.db.run(
+      'UPDATE previews SET config = ?, notes = COALESCE(?, notes), meta = COALESCE(?, meta) WHERE id = ?',
+      [j(config), notes ?? null, meta ? j(meta) : null, id],
+    );
   }
   setPublished(id: string, published: Preview['published']) {
     this.db.run('UPDATE previews SET published = ? WHERE id = ?', [j(published), id]);

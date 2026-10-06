@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api, useApiMutation, useMeta, type Prospect, type ProspectInput } from '../api';
 import { Button, Field, Input, Modal, Select, Textarea, useToast } from '../components/ui';
 import { STAGES } from '@shared/stages';
+import { LocationsEditor } from './Creative';
+import type { Location } from '@shared/v2';
 
 type FormState = {
   name: string;
@@ -22,6 +24,10 @@ type FormState = {
   potentialValue: string;
   nextFollowupAt: string;
   links: string;
+  services: string;
+  differentials: string;
+  brandColors: string;
+  locations: Location[];
 };
 
 const empty: FormState = {
@@ -42,6 +48,10 @@ const empty: FormState = {
   potentialValue: '',
   nextFollowupAt: '',
   links: '',
+  services: '',
+  differentials: '',
+  brandColors: '',
+  locations: [],
 };
 
 function toForm(p?: Prospect | null): FormState {
@@ -64,8 +74,19 @@ function toForm(p?: Prospect | null): FormState {
     potentialValue: p.potentialValue != null ? String(p.potentialValue) : '',
     nextFollowupAt: p.nextFollowupAt ? p.nextFollowupAt.slice(0, 10) : '',
     links: p.links.map((l) => (l.label ? `${l.label} ${l.url}` : l.url)).join('\n'),
+    services: (p.services ?? [])
+      .map((s) => (s.description ? `${s.title}: ${s.description}` : s.title))
+      .join('\n'),
+    differentials: (p.differentials ?? []).join('\n'),
+    brandColors: (p.brandColors ?? []).join(', '),
+    locations: p.locations ?? [],
   };
 }
+const lines = (t: string) =>
+  t
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
 function toInput(f: FormState): Partial<ProspectInput> {
   return {
@@ -95,6 +116,16 @@ function toInput(f: FormState): Partial<ProspectInput> {
         const label = parts.filter((p) => p !== url).join(' ');
         return { label, url };
       }),
+    services: lines(f.services).map((l) => {
+      const [title, ...rest] = l.split(':');
+      return { title: title.trim(), description: rest.join(':').trim() };
+    }),
+    differentials: lines(f.differentials),
+    brandColors: f.brandColors
+      .split(/[,\s]+/)
+      .map((c) => c.trim())
+      .filter((c) => /^#[0-9a-fA-F]{6}$/.test(c)),
+    locations: f.locations.filter((l) => l.name || l.address || l.city),
   };
 }
 
@@ -216,11 +247,39 @@ export function ProspectFormModal({
             className="text-xs text-muted hover:text-text text-left sm:col-span-2"
             onClick={() => setMore(true)}
           >
-            + mais campos (telefone, e-mail, origem, valor, links, observações)
+            + mais campos (serviços, unidades, cores, telefone, e-mail, origem, valor, links)
           </button>
         )}
         {more && (
           <>
+            <Field
+              label="Serviços principais (um por linha)"
+              className="sm:col-span-2"
+              hint="Ex.: Polimento técnico: remove riscos e devolve o brilho. O site e as mensagens usam estes nomes reais."
+            >
+              <Textarea value={f.services} onChange={set('services')} rows={3} />
+            </Field>
+            <Field label="Diferenciais (um por linha)">
+              <Textarea
+                value={f.differentials}
+                onChange={set('differentials')}
+                rows={2}
+                placeholder="Garantia de 1 ano, atendimento com hora marcada…"
+              />
+            </Field>
+            <Field label="Cores da marca" hint="Hex separados por vírgula. Se vazio, extraímos do logo.">
+              <Input value={f.brandColors} onChange={set('brandColors')} placeholder="#d4a017, #0b0b0d" />
+            </Field>
+            <Field
+              label="Unidades / endereços"
+              className="sm:col-span-2"
+              hint="Com mais de uma unidade, o site ganha a seção “Nossas unidades”."
+            >
+              <LocationsEditor
+                value={f.locations}
+                onChange={(locations) => setF((st) => ({ ...st, locations }))}
+              />
+            </Field>
             <Field label="Telefone">
               <Input value={f.phone} onChange={set('phone')} inputMode="tel" />
             </Field>

@@ -183,7 +183,11 @@ export const gallery = defineSection({
         ? fromAssets
         : Array.from({ length: p.count }, () => undefined);
     const cls =
-      variant === 'filmstrip' ? 'filmstrip' : variant === 'stacked' ? 'gallery-stacked' : cx('gallery', variant === 'editorial' && 'gallery--editorial');
+      variant === 'filmstrip'
+        ? 'filmstrip'
+        : variant === 'stacked'
+          ? 'gallery-stacked'
+          : cx('gallery', variant === 'editorial' && 'gallery--editorial');
     const limit = variant === 'stacked' ? 4 : 12;
     const body = `<div class="${cls}" data-gz="${variant === 'filmstrip' ? 'stagger' : variant === 'stacked' ? '' : 'stagger'}"${
       variant === 'filmstrip' ? ' data-gz-slider' : ''

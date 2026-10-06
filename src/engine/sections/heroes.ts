@@ -170,7 +170,8 @@ export const heroVideo = defineSection({
     const title = `<h1 class="hero__title" ${attrs({ 'data-gz': ctx.config.animations.textReveal ? 'text' : 'reveal' })}>${
       ctx.config.animations.textReveal ? splitWords(accentText(p.headline)) : accentText(p.headline)
     }</h1>`;
-    const mime = (src: string) => (/\.webm($|\?)/i.test(src) ? 'video/webm' : /\.(mov|m4v)($|\?)/i.test(src) ? 'video/mp4' : 'video/mp4');
+    const mime = (src: string) =>
+      /\.webm($|\?)/i.test(src) ? 'video/webm' : /\.(mov|m4v)($|\?)/i.test(src) ? 'video/mp4' : 'video/mp4';
     // Vídeo real: autoplay silencioso, inline, loop, poster; fallback para imagem se o vídeo falhar ou não houver.
     const media = p.videoSrc
       ? `<video class="hero__video" data-gz-video autoplay muted ${p.loop ? 'loop ' : ''}playsinline preload="metadata" poster="${esc(poster.src)}" aria-hidden="true" tabindex="-1">${
@@ -185,7 +186,9 @@ export const heroVideo = defineSection({
     }${ctas(ctx, p)}${badges(p.badges)}`;
     const isBottom = variant === 'bottom';
     return `<section class="${cx('hero hero--full hero--video', !isBottom && 'hero--center')}" id="inicio"><div class="hero__bg" data-gz-parallax="0.2" data-gz-parallax-bg>${media}</div><div class="container">${
-      isBottom ? `<div class="hero__grid"><div>${content}</div><div>${services || stats(p.stats)}</div></div>` : `${content}${services}`
+      isBottom
+        ? `<div class="hero__grid"><div>${content}</div><div>${services || stats(p.stats)}</div></div>`
+        : `${content}${services}`
     }</div><span class="hero__scroll" aria-hidden="true">scroll</span></section>`;
   },
 });
