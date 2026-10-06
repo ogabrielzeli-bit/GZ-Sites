@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { SEGMENT_IDS } from './segments';
 import { STAGE_IDS } from './stages';
 import { THEME_IDS } from './site-config';
+import { CreativityLevel, LocationSchema, ServiceInput, type BusinessDNA, type CreativeDirection, type PreviewMeta, type ProspectAsset, type PublishedPreview, type Research } from './v2';
 
 const optStr = z
   .string()
@@ -35,6 +36,10 @@ export const ProspectInput = z.object({
   lastContactAt: z.string().nullable().optional(),
   nextFollowupAt: z.string().nullable().optional(),
   tags: z.array(z.string().max(50)).default([]),
+  services: z.array(ServiceInput).default([]),
+  differentials: z.array(z.string().max(200)).default([]),
+  brandColors: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/)).default([]),
+  locations: z.array(LocationSchema).default([]),
 });
 export type ProspectInput = z.infer<typeof ProspectInput>;
 
@@ -64,7 +69,13 @@ export interface Prospect {
   nextFollowupAt: string | null;
   tags: string[];
   logoPath: string | null;
-  photos: { path: string; name: string; width?: number; height?: number }[];
+  photos: ProspectAsset[];
+  services: { title: string; description: string }[];
+  differentials: string[];
+  brandColors: string[];
+  locations: import('./v2').Location[];
+  research: Research | null;
+  creative: { dna?: BusinessDNA; direction?: CreativeDirection; lastPreviewId?: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -220,6 +231,10 @@ export interface Audit {
 // ---------------- Prévia ----------------
 export const PreviewInput = z.object({
   theme: z.enum(THEME_IDS).optional(),
+  /** direção criativa escolhida (id) ou 'auto' */
+  directionId: z.string().optional(),
+  seed: z.number().int().optional(),
+  locks: z.array(z.string()).optional(),
   /** variação de layout do preset (0..n) — troca a composição das seções */
   layoutVariant: z.number().int().min(0).max(9).optional(),
   /** configuração completa para regenerar com ajustes do usuário */
@@ -236,6 +251,8 @@ export interface Preview {
   path: string;
   url: string;
   notes: string;
+  meta: PreviewMeta;
+  published: PublishedPreview | null;
   createdAt: string;
 }
 
@@ -343,7 +360,10 @@ export type ActivityType =
   | 'autofix.ran'
   | 'deploy.prepared'
   | 'note'
-  | 'message.generated';
+  | 'message.generated'
+  | 'research.done'
+  | 'preview.published'
+  | 'video.optimized';
 export interface Activity {
   id: string;
   prospectId: string | null;
@@ -413,6 +433,7 @@ export const SettingsSchema = z.object({
     .default('Atualizações de conteúdo, monitoramento, backups, correções e suporte via WhatsApp.'),
   defaultTheme: z.enum(THEME_IDS).default('minimal-light'),
   dashboardTheme: z.enum(['dark', 'light']).default('dark'),
+  creativity: CreativityLevel.default('equilibrado'),
   ai: z
     .object({
       /** provider ativo (none = sem IA). As chaves ficam no .env, nunca aqui. */

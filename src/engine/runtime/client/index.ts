@@ -16,9 +16,25 @@ const magneticOn =
   root.dataset.magnetic !== '0' && !reduced && matchMedia('(hover: hover) and (pointer: fine)').matches;
 const isDesktop = () => matchMedia('(min-width: 900px)').matches;
 
-const dist = { subtle: 18, normal: 32, bold: 56 }[intensity];
-const dur = { subtle: 0.7, normal: 0.9, bold: 1.1 }[intensity];
-const ease = 'power3.out';
+/**
+ * Personalidades de motion (V2): o mesmo runtime se comporta de forma diferente por perfil.
+ * elegant: suave e lento · performance: rápido e firme · technical: seco, sem floreio
+ * editorial: lento, com clip reveals · playful: elástico · minimal: quase nada · cinematic: lento e amplo
+ */
+type MotionProfile = 'elegant' | 'performance' | 'technical' | 'editorial' | 'playful' | 'minimal' | 'cinematic';
+const PROFILES: Record<MotionProfile, { dist: number; dur: number; ease: string; stagger: number; imageScale: number; textRotate: number; glow: boolean }> = {
+  elegant: { dist: 1, dur: 1, ease: 'power3.out', stagger: 1, imageScale: 1.15, textRotate: -20, glow: true },
+  performance: { dist: 1.3, dur: 0.65, ease: 'power4.out', stagger: 0.6, imageScale: 1.25, textRotate: 0, glow: true },
+  technical: { dist: 0.5, dur: 0.5, ease: 'power2.out', stagger: 0.5, imageScale: 1.02, textRotate: 0, glow: false },
+  editorial: { dist: 0.8, dur: 1.3, ease: 'power2.out', stagger: 1.2, imageScale: 1.08, textRotate: 0, glow: false },
+  playful: { dist: 1.2, dur: 0.9, ease: 'back.out(1.6)', stagger: 1, imageScale: 1.2, textRotate: -30, glow: true },
+  minimal: { dist: 0.4, dur: 0.6, ease: 'power1.out', stagger: 0.6, imageScale: 1, textRotate: 0, glow: false },
+  cinematic: { dist: 1.4, dur: 1.5, ease: 'expo.out', stagger: 1.3, imageScale: 1.3, textRotate: -12, glow: true },
+};
+const profile = PROFILES[(root.dataset.motion as MotionProfile) || 'elegant'] ?? PROFILES.elegant;
+const dist = Math.round({ subtle: 18, normal: 32, bold: 56 }[intensity] * profile.dist);
+const dur = { subtle: 0.7, normal: 0.9, bold: 1.1 }[intensity] * profile.dur;
+const ease = profile.ease;
 
 function $all<T extends Element = HTMLElement>(sel: string, scope: ParentNode = document): T[] {
   return Array.from(scope.querySelectorAll<T>(sel));
@@ -78,7 +94,7 @@ function initReveals() {
         opacity: 1,
         duration: dur,
         ease,
-        stagger: Math.min(0.12, 0.6 / kids.length),
+        stagger: Math.min(0.12, 0.6 / kids.length) * profile.stagger,
         scrollTrigger: { trigger: el, start: 'top 85%', once: true },
       },
     );
@@ -101,7 +117,7 @@ function initReveals() {
     } else {
       gsap.fromTo(
         words,
-        { y: '0.6em', opacity: 0, rotateX: -20 },
+        { y: '0.6em', opacity: 0, rotateX: profile.textRotate },
         {
           y: 0,
           opacity: 1,
@@ -124,7 +140,8 @@ function initReveals() {
       { clipPath: 'inset(0 0 0% 0)', duration: 1.1, ease: 'power4.out' },
       0,
     );
-    if (img) tl.fromTo(img, { scale: 1.15 }, { scale: 1, duration: 1.4, ease: 'power3.out' }, 0);
+    if (img && profile.imageScale > 1)
+      tl.fromTo(img, { scale: profile.imageScale }, { scale: 1, duration: 1.4 * profile.dur, ease: 'power3.out' }, 0);
   });
   $all('[data-gz="clip"]').forEach((el) => {
     gsap.fromTo(
@@ -426,7 +443,7 @@ function initForms() {
 
 // ---------- Cursor glow (desktop, sutil) ----------
 function initCursorGlow() {
-  if (reduced || !magneticOn || intensity === 'subtle') return;
+  if (reduced || !magneticOn || intensity === 'subtle' || !profile.glow) return;
   const glow = document.createElement('div');
   glow.className = 'gz-cursor-glow';
   document.body.appendChild(glow);
@@ -443,9 +460,33 @@ function initCursorGlow() {
   );
 }
 
+// ---------- Vídeo de hero (V2) ----------
+// Toca só quando visível, pausa fora da tela; respeita reduced-motion e Save-Data; se falhar, mostra o poster.
+function initVideo() {
+  const saveData = !!(navigator as any).connection?.saveData;
+  $all<HTMLVideoElement>('video[data-gz-video]').forEach((v) => {
+    const off = () => {
+      v.pause();
+      v.removeAttribute('autoplay');
+      v.classList.add('is-off');
+    };
+    if (reduced || saveData) return off();
+    v.addEventListener('error', off, { once: true });
+    v.querySelectorAll('source').forEach((s) => s.addEventListener('error', off, { once: true }));
+    const tryPlay = () => v.play().catch(off);
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(
+        (entries) => entries.forEach((e) => (e.isIntersecting ? tryPlay() : v.pause())),
+        { threshold: 0.15 },
+      ).observe(v);
+    } else tryPlay();
+  });
+}
+
 // ---------- Boot ----------
 function boot() {
   initHeader();
+  initVideo();
   initReveals();
   initParallax();
   initCounters();
@@ -467,4 +508,4 @@ function boot() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
 else boot();
 
-(window as any).GZ = { gsap, ScrollTrigger, version: '1.0.0' };
+(window as any).GZ = { gsap, ScrollTrigger, version: '2.0.0', motion: root.dataset.motion || 'elegant' };

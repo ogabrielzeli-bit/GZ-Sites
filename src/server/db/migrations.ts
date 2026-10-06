@@ -109,4 +109,17 @@ export const MIGRATIONS: Migration[] = [
       )`,
     ],
   },
+  {
+    id: '0002_v2_adaptive',
+    up: [
+      `ALTER TABLE prospects ADD COLUMN services TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE prospects ADD COLUMN differentials TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE prospects ADD COLUMN brand_colors TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE prospects ADD COLUMN locations TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE prospects ADD COLUMN research TEXT`,
+      `ALTER TABLE prospects ADD COLUMN creative TEXT`,
+      `ALTER TABLE previews ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`,
+      `ALTER TABLE previews ADD COLUMN published TEXT`,
+    ],
+  },
 ];

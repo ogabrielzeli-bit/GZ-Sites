@@ -89,6 +89,7 @@ export function createApp(ctx: AppContext) {
   serveDir('/files/audits', ctx.env.auditsDir);
   serveDir('/files/projects', ctx.env.projectsDir);
   serveDir('/previews', ctx.env.previewsDir);
+  serveDir('/published', path.join(ctx.env.dataDir, 'published'));
   app.use('/projects-preview', projectPreviewHandler(ctx));
 
   // ---- dashboard compilado (produção) ----

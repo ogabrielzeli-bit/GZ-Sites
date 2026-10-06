@@ -167,6 +167,8 @@ export const gallery = defineSection({
   variants: [
     { id: 'editorial', label: 'Mosaico editorial' },
     { id: 'uniform', label: 'Grade uniforme' },
+    { id: 'filmstrip', label: 'Faixa horizontal (filmstrip)' },
+    { id: 'stacked', label: 'Empilhada (fotos grandes)' },
   ],
   props: z.object({
     ...Head,
@@ -180,16 +182,21 @@ export const gallery = defineSection({
       : fromAssets.length
         ? fromAssets
         : Array.from({ length: p.count }, () => undefined);
-    const body = `<div class="${cx('gallery', variant === 'editorial' && 'gallery--editorial')}" data-gz="stagger">${items
-      .slice(0, 12)
+    const cls =
+      variant === 'filmstrip' ? 'filmstrip' : variant === 'stacked' ? 'gallery-stacked' : cx('gallery', variant === 'editorial' && 'gallery--editorial');
+    const limit = variant === 'stacked' ? 4 : 12;
+    const body = `<div class="${cls}" data-gz="${variant === 'filmstrip' ? 'stagger' : variant === 'stacked' ? '' : 'stagger'}"${
+      variant === 'filmstrip' ? ' data-gz-slider' : ''
+    }>${items
+      .slice(0, limit)
       .map((it, i) => {
         const im = ctx.assets.image(it ?? undefined, {
           key: `gallery-${i}`,
-          w: 1000,
-          h: 1000,
+          w: variant === 'stacked' ? 1800 : variant === 'filmstrip' ? 900 : 1000,
+          h: variant === 'stacked' ? 1000 : variant === 'filmstrip' ? 1100 : 1000,
           label: `Foto ${i + 1}`,
         });
-        return `<div class="media media--zoom" data-gz="image">${img(im)}</div>`;
+        return `<div class="media media--zoom${variant === 'stacked' ? ' media--16x9' : ''}" data-gz="image"${variant === 'stacked' ? ` data-gz-parallax="${(0.05 + (i % 2) * 0.05).toFixed(2)}"` : ''}>${img(im)}</div>`;
       })
       .join('')}</div>`;
     return wrap(ctx, sectionHead({ eyebrow: p.eyebrow, title: p.title, intro: p.intro }) + body, {

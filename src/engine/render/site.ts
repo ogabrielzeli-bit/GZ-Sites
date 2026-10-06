@@ -69,7 +69,7 @@ export function renderSite(input: SiteConfig | unknown, opts: RenderOptions = {}
     const abs = localFile(src);
     if (abs && fs.existsSync(abs)) {
       const name = path.basename(abs);
-      const out = `assets/img/${name}`;
+      const out = `assets/${/\.(mp4|webm|mov|m4v)$/i.test(name) ? 'video' : 'img'}/${name}`;
       if (!emitted.has(out)) {
         files.set(out, fs.readFileSync(abs));
         emitted.add(out);
@@ -323,7 +323,7 @@ function renderPage(
     : '';
 
   return `<!doctype html>
-<html lang="${escapeHtml(config.seo.lang)}" class="${htmlClasses}" data-anim-intensity="${config.animations.intensity}" data-parallax="${config.animations.parallax ? '1' : '0'}" data-magnetic="${config.animations.magnetic ? '1' : '0'}">
+<html lang="${escapeHtml(config.seo.lang)}" class="${htmlClasses}" data-anim-intensity="${config.animations.intensity}" data-motion="${config.animations.profile}" data-parallax="${config.animations.parallax ? '1' : '0'}" data-magnetic="${config.animations.magnetic ? '1' : '0'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

@@ -56,6 +56,10 @@ export const SECTION_TYPES = [
   'header',
   'pricing',
   'hours',
+  'hero-editorial',
+  'hero-showcase',
+  'hero-layered',
+  'locations',
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -169,6 +173,9 @@ export const SiteConfigSchema = z.object({
     projects: z.array(ProjectItem).default([]),
     hours: z.array(z.object({ days: z.string(), hours: z.string() })).default([]),
     serviceAreas: z.array(z.string()).default([]),
+    locations: z
+      .array(z.object({ name: z.string().default(''), address: z.string().default(''), city: z.string().default(''), state: z.string().default(''), phone: z.string().default(''), whatsapp: z.string().default(''), mapsUrl: z.string().default(''), openingHours: z.string().default('') }))
+      .default([]),
   }),
   contact: z.object({
     whatsapp: z.string().optional(),
@@ -204,6 +211,8 @@ export const SiteConfigSchema = z.object({
       magnetic: z.boolean().default(true),
       textReveal: z.boolean().default(true),
       smoothScroll: z.boolean().default(false),
+      /** personalidade de motion (V2) */
+      profile: z.enum(['elegant', 'performance', 'technical', 'editorial', 'playful', 'minimal', 'cinematic']).default('elegant'),
     })
     .default({
       enabled: true,
@@ -212,6 +221,7 @@ export const SiteConfigSchema = z.object({
       magnetic: true,
       textReveal: true,
       smoothScroll: false,
+      profile: 'elegant',
     }),
   integrations: z
     .object({
@@ -225,8 +235,9 @@ export const SiteConfigSchema = z.object({
   assets: z
     .object({
       images: z.array(ImageRef.extend({ id: z.string() })).default([]),
+      videos: z.array(z.object({ src: z.string(), poster: z.string().optional(), duration: z.number().optional() })).default([]),
     })
-    .default({ images: [] }),
+    .default({ images: [], videos: [] }),
   pages: z.array(PageConfig).min(1),
   /** marca d'água de prévia: mostra barra "Prévia GZ Sites" */
   previewMode: z.boolean().default(false),

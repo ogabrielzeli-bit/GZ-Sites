@@ -17,11 +17,13 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
+    // IMPORTANTE: prefixos com barra final — '/api' capturaria '/api.ts' (módulo do dashboard)
     proxy: {
-      '/api': `http://127.0.0.1:${apiPort}`,
-      '/previews': `http://127.0.0.1:${apiPort}`,
-      '/files': `http://127.0.0.1:${apiPort}`,
-      '/projects-preview': `http://127.0.0.1:${apiPort}`,
+      '/published/': `http://127.0.0.1:${apiPort}`,
+      '/api/': `http://127.0.0.1:${apiPort}`,
+      '/previews/': `http://127.0.0.1:${apiPort}`,
+      '/files/': `http://127.0.0.1:${apiPort}`,
+      '/projects-preview/': `http://127.0.0.1:${apiPort}`,
     },
   },
   build: {

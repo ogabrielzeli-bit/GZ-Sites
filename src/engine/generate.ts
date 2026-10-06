@@ -39,7 +39,24 @@ export interface GenerateInput {
   /** créditos no rodapé */
   credits?: { name: string; url?: string };
   formMode?: 'netlify' | 'whatsapp' | 'mailto' | 'none';
-  seed?: string;
+  seed?: string | number;
+  /** V2 — composer adaptativo: blueprints explícitos (substituem o arquétipo fixo) */
+  blueprints?: Blueprint[];
+  themeOverrides?: SiteConfig['theme']['overrides'];
+  motionProfile?: SiteConfig['animations']['profile'];
+  hero?: {
+    headline?: string;
+    subheadline?: string;
+    eyebrow?: string;
+    primaryCta?: string;
+    secondaryCta?: string;
+    image?: ImageRef;
+    images?: ImageRef[];
+    video?: { src: string; poster?: string; duration?: number };
+    services?: string[];
+  };
+  finalCta?: { title: string; text: string };
+  locations?: SiteConfig['business']['locations'];
 }
 
 export interface GenerateResult {
@@ -77,7 +94,7 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       estado: input.state,
       anos: input.yearsExperience || undefined,
     },
-    input.seed ?? `${input.name}|${variant}`,
+    input.seed !== undefined ? String(input.seed) : `${input.name}|${variant}`,
   );
   const photos = input.photos ?? [];
   let photoIdx = 0;
@@ -111,26 +128,34 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
   const primaryLabel = pick.pick(copy.cta.primary, 1);
   const secondaryLabel = pick.pick(copy.cta.secondary, 2);
 
+  const h = input.hero;
+  const heroImage = h?.image ?? nextPhoto();
   const heroProps = {
-    eyebrow: pick.pick(copy.hero.eyebrow, 3),
-    headline: pick.pick(copy.hero.headline, 4),
-    subheadline: pick.pick(copy.hero.sub, 5),
-    primaryCta: { label: primaryLabel },
-    secondaryCta: { label: secondaryLabel, href: '#servicos' },
+    eyebrow: h?.eyebrow ?? pick.pick(copy.hero.eyebrow, 3),
+    headline: h?.headline ?? pick.pick(copy.hero.headline, 4),
+    subheadline: h?.subheadline ?? pick.pick(copy.hero.sub, 5),
+    primaryCta: { label: h?.primaryCta ?? primaryLabel },
+    secondaryCta: { label: h?.secondaryCta ?? secondaryLabel, href: '#servicos' },
     badges: copy.hero.badges.map((b) => pick.text(b)),
     stats:
-      layout === 'impact'
+      layout === 'impact' && !input.blueprints
         ? stats.slice(0, 3).map((s) => ({ value: s.value + (s.suffix ?? ''), label: s.label }))
         : [],
-    image: nextPhoto(),
+    image: heroImage,
+    images: h?.images ?? (heroImage ? [heroImage, ...photos.filter((p) => p !== heroImage).slice(0, 2)] : []),
+    services: h?.services ?? [],
+    videoSrc: h?.video?.src,
+    poster: h?.video?.poster ? { src: h.video.poster, alt: 'Poster do vídeo' } : undefined,
   };
+  const heroStats = stats.slice(0, 3).map((s) => ({ value: s.value + (s.suffix ?? ''), label: s.label }));
 
   const sections: SectionInstance[] = [];
-  for (const bp of LAYOUTS[layout]) {
+  for (const bp of input.blueprints ?? LAYOUTS[layout]) {
     const s = buildSection(bp, {
       copy,
       pick,
       heroProps,
+      heroStats,
       services,
       benefits,
       stats,
@@ -142,9 +167,21 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       primaryLabel,
       credits: input.credits,
       whatsappMessage,
+      finalCta: input.finalCta,
+      locations: input.locations ?? [],
     });
     if (s) sections.push(s);
   }
+  const motion = input.motionProfile ?? 'elegant';
+  const motionIntensity: Record<string, 'subtle' | 'normal' | 'bold'> = {
+    minimal: 'subtle',
+    technical: 'subtle',
+    editorial: 'normal',
+    elegant: 'normal',
+    performance: 'bold',
+    playful: 'bold',
+    cinematic: 'bold',
+  };
 
   const hasPhone = !!(input.whatsapp || input.phone);
   const raw = {
@@ -154,7 +191,7 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       tagline: pick.pick(copy.manifesto, 6).replace(/\*/g, ''),
       logo: input.logo ?? null,
     },
-    theme: { id: theme, overrides: {} },
+    theme: { id: theme, overrides: input.themeOverrides ?? {} },
     business: {
       segment,
       city: input.city,
@@ -173,6 +210,7 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
       projects,
       hours: input.hours ?? [],
       serviceAreas: input.city ? [input.city] : [],
+      locations: input.locations ?? [],
     },
     contact: {
       whatsapp: input.whatsapp ? (normalizeWhatsapp(input.whatsapp) ?? undefined) : undefined,
@@ -195,17 +233,21 @@ export function generateSiteConfig(input: GenerateInput): GenerateResult {
     },
     animations: {
       enabled: true,
-      intensity: 'normal',
-      parallax: true,
-      magnetic: true,
-      textReveal: true,
+      profile: motion,
+      intensity: motionIntensity[motion] ?? 'normal',
+      parallax: motion !== 'minimal',
+      magnetic: motion !== 'minimal' && motion !== 'technical',
+      textReveal: motion !== 'technical',
       smoothScroll: false,
     },
     integrations: {
       form: input.formMode ?? (hasPhone ? 'whatsapp' : input.email ? 'mailto' : 'netlify'),
       analytics: { provider: 'none' },
     },
-    assets: { images: photos.map((p, i) => ({ id: `photo-${i}`, ...p })) },
+    assets: {
+      images: photos.map((p, i) => ({ id: `photo-${i}`, ...p })),
+      videos: input.hero?.video ? [{ id: 'hero-video', src: input.hero.video.src, poster: input.hero.video.poster, duration: input.hero.video.duration }] : [],
+    },
     pages: [{ path: '/', title: 'Início', hidden: false, sections }],
     previewMode: !!input.previewMode,
   };
@@ -216,6 +258,9 @@ interface BuildCtx {
   copy: ReturnType<typeof getCopy>;
   pick: ReturnType<typeof createPicker>;
   heroProps: Record<string, unknown>;
+  heroStats: { value: string; label: string }[];
+  finalCta?: { title: string; text: string };
+  locations: NonNullable<GenerateInput['locations']>;
   services: { title: string; description: string; icon?: string }[];
   benefits: { title: string; description: string; icon?: string }[];
   stats: { value: string; label: string; suffix?: string }[];
@@ -244,7 +289,19 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
     case 'hero-fullscreen':
     case 'hero-split':
     case 'hero-video':
-      return base(c.heroProps);
+    case 'hero-editorial':
+    case 'hero-showcase':
+    case 'hero-layered':
+      return base(bp.props?.withStats ? { ...c.heroProps, stats: c.heroStats } : c.heroProps);
+    case 'locations':
+      if (!c.locations.length) return null;
+      return base({
+        id: 'unidades',
+        navLabel: 'Unidades',
+        eyebrow: 'Onde estamos',
+        title: c.locations.length > 1 ? 'Nossas *unidades*' : 'Onde *estamos*',
+        items: c.locations,
+      });
     case 'marquee':
       return base({ items: copy.marquee.map((m) => pick.text(m)) });
     case 'manifesto':
@@ -344,8 +401,8 @@ function buildSection(bp: Blueprint, c: BuildCtx): SectionInstance | null {
     case 'cta':
       return base({
         eyebrow: pick.text(copy.finalCta.eyebrow),
-        title: pick.pick(copy.finalCta.title, 22),
-        text: pick.pick(copy.finalCta.text, 23),
+        title: c.finalCta?.title ?? pick.pick(copy.finalCta.title, 22),
+        text: c.finalCta?.text ?? pick.pick(copy.finalCta.text, 23),
         primaryCta: { label: c.primaryLabel },
         image: c.nextPhoto(),
       });

@@ -148,9 +148,19 @@ export const heroVideo = defineSection({
   type: 'hero-video',
   name: 'Hero Vídeo',
   description: 'Vídeo de fundo em loop silencioso com poster e overlay; cai para imagem se não houver vídeo.',
-  variants: [{ id: 'default', label: 'Padrão' }],
-  props: HeroBase.extend({ videoSrc: z.string().optional(), poster: ImageProp }),
-  render(p, ctx) {
+  variants: [
+    { id: 'bottom', label: 'Título embaixo' },
+    { id: 'center', label: 'Centralizado' },
+    { id: 'default', label: 'Padrão (centralizado)' },
+  ],
+  props: HeroBase.extend({
+    videoSrc: z.string().optional(),
+    videoSrcWebm: z.string().optional(),
+    poster: ImageProp,
+    loop: z.boolean().default(true),
+    services: z.array(z.string()).default([]),
+  }),
+  render(p, ctx, variant) {
     const poster = ctx.assets.image(p.poster ?? p.image, {
       key: 'hero-video-poster',
       w: 1920,
@@ -160,16 +170,23 @@ export const heroVideo = defineSection({
     const title = `<h1 class="hero__title" ${attrs({ 'data-gz': ctx.config.animations.textReveal ? 'text' : 'reveal' })}>${
       ctx.config.animations.textReveal ? splitWords(accentText(p.headline)) : accentText(p.headline)
     }</h1>`;
+    const mime = (src: string) => (/\.webm($|\?)/i.test(src) ? 'video/webm' : /\.(mov|m4v)($|\?)/i.test(src) ? 'video/mp4' : 'video/mp4');
+    // Vídeo real: autoplay silencioso, inline, loop, poster; fallback para imagem se o vídeo falhar ou não houver.
     const media = p.videoSrc
-      ? `<video autoplay muted loop playsinline preload="metadata" poster="${esc(poster.src)}" aria-hidden="true"><source src="${esc(
-          p.videoSrc,
-        )}" type="video/mp4"></video>`
+      ? `<video class="hero__video" data-gz-video autoplay muted ${p.loop ? 'loop ' : ''}playsinline preload="metadata" poster="${esc(poster.src)}" aria-hidden="true" tabindex="-1">${
+          p.videoSrcWebm ? `<source src="${esc(ctx.assets.url(p.videoSrcWebm))}" type="video/webm">` : ''
+        }<source src="${esc(ctx.assets.url(p.videoSrc))}" type="${mime(p.videoSrc)}"></video><div class="hero__video-fallback">${img(poster, { priority: true })}</div>`
       : img(poster, { priority: true });
-    return `<section class="hero hero--full hero--center" id="inicio"><div class="hero__bg" data-gz-parallax="0.2" data-gz-parallax-bg>${media}</div><div class="container">${
-      p.eyebrow ? `<p class="eyebrow" data-gz="reveal">${esc(p.eyebrow)}</p>` : ''
-    }${title}${p.subheadline ? `<p class="lead" data-gz="reveal">${esc(p.subheadline)}</p>` : ''}${ctas(ctx, p)}${badges(
-      p.badges,
-    )}</div></section>`;
+    const services = p.services.length
+      ? `<ul class="hero__services" data-gz="stagger">${p.services.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>`
+      : '';
+    const content = `${p.eyebrow ? `<p class="eyebrow" data-gz="reveal">${esc(p.eyebrow)}</p>` : ''}${title}${
+      p.subheadline ? `<p class="lead" data-gz="reveal">${esc(p.subheadline)}</p>` : ''
+    }${ctas(ctx, p)}${badges(p.badges)}`;
+    const isBottom = variant === 'bottom';
+    return `<section class="${cx('hero hero--full hero--video', !isBottom && 'hero--center')}" id="inicio"><div class="hero__bg" data-gz-parallax="0.2" data-gz-parallax-bg>${media}</div><div class="container">${
+      isBottom ? `<div class="hero__grid"><div>${content}</div><div>${services || stats(p.stats)}</div></div>` : `${content}${services}`
+    }</div><span class="hero__scroll" aria-hidden="true">scroll</span></section>`;
   },
 });
 

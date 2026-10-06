@@ -8,6 +8,7 @@ import { CONTENT_SECTIONS } from './content';
 import { MEDIA_SECTIONS } from './media';
 import { CONVERSION_SECTIONS } from './conversion';
 import { CHROME_SECTIONS } from './chrome';
+import { V2_SECTIONS } from './v2';
 
 const ALL: SectionDef[] = [
   ...CHROME_SECTIONS,
@@ -15,6 +16,7 @@ const ALL: SectionDef[] = [
   ...CONTENT_SECTIONS,
   ...MEDIA_SECTIONS,
   ...CONVERSION_SECTIONS,
+  ...V2_SECTIONS,
 ];
 
 export const SECTION_REGISTRY: Record<string, SectionDef> = Object.fromEntries(ALL.map((s) => [s.type, s]));
