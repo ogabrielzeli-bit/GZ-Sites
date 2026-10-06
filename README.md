@@ -88,7 +88,9 @@ npm run gz:audit -- https://site-do-cliente.com.br --no-lighthouse   # mais ráp
 
 ## GERAR PRÉVIA
 
-No painel: **Gerar prévia** (abre em nova aba; link público em `/previews/<id>/`). Cada clique gera uma composição diferente; na aba Prévias você escolhe o tema e pode **Ajustar dados** (headline, serviços, WhatsApp ou o JSON completo).
+No painel, aba **Prévias → "Criar com direção criativa"** (V2): o GZ OS pesquisa as fontes públicas da ficha (site/Instagram/Maps/links, só o que está publicado), monta o **DNA do negócio** e propõe **3 direções visuais** diferentes (ou **Escolha por mim**). A prévia abre em `/preview/<id>` com troca de dispositivo, **Creative Quality Score**, bloqueios 🔒 para **Regenerar composição**, **Trocar direção**, **Editar conteúdo** e **Publicar prévia** (link público). Fotos, **vídeos** (hero em vídeo automático), cores da marca e **unidades** cadastradas na Ficha entram no site. Detalhes em `CREATIVE_ENGINE.md`.
+
+O modo clássico continua: **Gerar prévia clássica** (tema + variação do preset do segmento) e **Ajustar dados** (headline, serviços, WhatsApp ou o JSON completo). Link público em `/previews/<id>/`.
 
 CLI:
 

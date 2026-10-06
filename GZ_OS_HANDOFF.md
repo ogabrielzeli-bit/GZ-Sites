@@ -11,15 +11,17 @@ Sistema interno da GZ Sites (slogan: _Sua loja fecha. Seu site não._) que cobre
 ```
 src/shared     schemas Zod + tipos (fonte da verdade dos contratos API/engine)
 src/engine     gerador de sites (tokens, temas, seções, copy, presets, render, runtime GSAP)
+               V2: dna.ts (BusinessDNA), creative.ts (direções), compose.ts (composição adaptativa + locks), sections/v2.ts
 src/server     API Express, SQLite, jobs, módulos (auditor, previews, factory, proposals, messages, uploads, backup, ai)
-src/qa         QA automático + auto-fix + relatório (usado pelo painel e CLI)
+               V2: research.ts (pesquisa pública), creative.ts (fluxo), publish.ts (Netlify/mock), assets.ts (imagem/vídeo), messages/adaptive.ts
+src/qa         QA automático + auto-fix + relatório (usado pelo painel e CLI); V2: creative.ts (Creative Quality Score)
 src/cli        `npm run gz -- <cmd>`
-src/web        dashboard React/Vite/Tailwind 4
-tests          vitest unit (37) + e2e (9, API real + Playwright)
+src/web        dashboard React/Vite/Tailwind 4; V2: pages/Creative.tsx (direção, /preview/:id, assets, mensagens, unidades)
+tests          vitest unit (58) + e2e (18, API real + Playwright); fixture de teste tests/fixtures/mizuno.ts (nunca inserir como real)
 data/          dados do usuário (gitignored)
 ```
 
-Documentos: `README.md` (uso), `ARCHITECTURE.md`, `DEVELOPMENT.md` (como adicionar seção/tema/segmento/regra), `SITE_FACTORY.md`, `AUDITOR.md`, `SECURITY.md`, `DEPLOYMENT.md`, `TROUBLESHOOTING.md`, `AI_OPTIONAL.md`.
+Documentos: `README.md` (uso), `CREATIVE_ENGINE.md` (V2: DNA, direções, vídeo, publicação, mensagens), `ARCHITECTURE.md`, `DEVELOPMENT.md` (como adicionar seção/tema/segmento/regra), `SITE_FACTORY.md`, `AUDITOR.md`, `SECURITY.md`, `DEPLOYMENT.md`, `TROUBLESHOOTING.md`, `AI_OPTIONAL.md`.
 
 ## 3. Comandos que importam
 
@@ -53,6 +55,12 @@ npm run build && npm start   # produção
 - **Project standalone export** copia `src/engine` + `src/shared` para `engine/` dentro do ZIP; o `scripts/build.ts` do projeto importa `../engine/engine/index`. Se renomear pastas do engine, atualize `STANDALONE_BUILD` em `src/server/modules/factory/index.ts`.
 - **Express 5**: rotas com `/{*splat}`; `req.query` é somente leitura; `path-to-regexp` novo.
 - **Tailwind 4**: `@apply` não aceita classes compostas definidas em CSS (`card`), só utilitários.
+- **Vite proxy** usa chaves com barra final (`/api/`, `/previews/`…): `/api` capturava `/api.ts` do próprio dashboard.
+- **Rota do painel `/preview/:id` é singular** de propósito: `/previews/<id>/` é o site estático público. Não troque.
+- **Prévias V1 e V2 convivem** na mesma tabela: `previews.meta` vazio = V1 (tema/variação); com `direction` = V2. `POST /previews` sem `directionId` mantém o fluxo V1.
+- **Segredos só no backend**: `NETLIFY_AUTH_TOKEN`/`PUBLISH_PROVIDER` vêm do `.env`; o painel só lê `GET /publish/status`.
+- **Vídeo** depende de `ffmpeg`/`ffprobe` do sistema (ou `FFMPEG_PATH`) para poster/otimização; sem eles, degrada sem erro. O ffmpeg embutido do Playwright é só WebM e não serve.
+- **Pesquisa pública é extrativa** (regex/DOM, sem IA) e por fonte isolada: uma fonte bloqueada vira `{ok:false,error}` e o resto segue.
 
 ## 6. Estado atual (testado)
 
@@ -60,8 +68,11 @@ npm run build && npm start   # produção
 - 20 segmentos × 10 temas × 6 layouts renderizam sem avisos (teste unitário).
 - QA de um site gerado: Lighthouse ~85–100 / 91 / 100 / 100 no ambiente de teste; 0 overflow em 5 viewports.
 - Lint, typecheck e Prettier limpos.
+- **V2 (branch `claude/gz-os-v2-adaptive`)**: 21 testes unitários (DNA, direções, composição, vídeo, unidades, locks/regeneração, Creative QA, mensagens adaptativas, publicação mock, backup) + 9 E2E (upload real de logo/fotos/WebM → direções → prévia com hero em vídeo tocando no Chromium → locks/regenerar → publicar mock → mensagem → fluxo V1 intacto). Revisão visual Playwright de 3 arquétipos (oficina com vídeo, arquitetura, clínica) em 1920/1440/820/430/390: sem overflow, sem erros de JS, sites estruturalmente diferentes.
 
 ## 7. Backlog sugerido (por valor)
+
+0. **V2 pendências**: testar publicação Netlify real com token; editor visual de seções integrado à página da prévia; hero `layered`/`showcase` em mais composições; pesquisa com mais extratores (cardápio, catálogo); similaridade visual por screenshot.
 
 1. **Editor visual de seções** no painel (hoje: formulário rápido + JSON). Reordenar/ativar seções com drag-and-drop, trocar variante por select.
 2. **Fotos de banco de imagens** opcional (Unsplash/Pexels via chave do usuário) como alternativa aos placeholders — provider plugável como a IA.
