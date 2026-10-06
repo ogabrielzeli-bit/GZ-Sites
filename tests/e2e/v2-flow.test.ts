@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import sharp from 'sharp';
 import { chromium } from 'playwright';
@@ -58,7 +58,8 @@ const waitJobs = async (url: string, max = 60000) => {
 };
 
 beforeAll(async () => {
-  // fixtures: logo (fundo escuro + círculo dourado), fotos sólidas e vídeo curto (webm: Chromium headless reproduz sem codec proprietário)
+  // fixtures: logo (fundo escuro + círculo dourado), fotos sólidas e um .mp4 real com nome com espaços
+  // (codec VP9 em container MP4: Chromium headless reproduz sem codec proprietário, então dá para validar o playback)
   await sharp({
     create: { width: 400, height: 400, channels: 4, background: { r: 10, g: 10, b: 12, alpha: 1 } },
   })
@@ -97,9 +98,11 @@ beforeAll(async () => {
       'libvpx-vp9',
       '-b:v',
       '300k',
-      path.join(fxDir, 'clip.webm'),
+      '-pix_fmt',
+      'yuv420p',
+      path.join(fxDir, 'video porsche mizuno.mp4'),
     ]);
-    hasFfmpeg = fs.existsSync(path.join(fxDir, 'clip.webm'));
+    hasFfmpeg = fs.existsSync(path.join(fxDir, 'video porsche mizuno.mp4'));
   } catch {
     hasFfmpeg = false;
   }
@@ -145,11 +148,20 @@ describe('V2 — fluxo criativo completo (fixture Mizuno, só teste)', () => {
     expect(photos.files[0].kind).toBe('image');
     expect(photos.files[0].analysis?.heroScore).toBeTypeOf('number');
     if (hasFfmpeg) {
-      const v = await upload(id, 'video', [path.join(fxDir, 'clip.webm')]);
+      const v = await upload(id, 'video', [path.join(fxDir, 'video porsche mizuno.mp4')]);
       expect(v.files[0].kind).toBe('video');
+      expect(v.files[0].mime).toBe('video/mp4');
+      expect(v.files[0].path).toMatch(/\/video\/video-porsche-mizuno-[0-9a-f]{8}\.mp4$/);
       expect(v.files[0].analysis.duration).toBeGreaterThan(1);
       expect(v.files[0].poster).toMatch(/-poster\.webp$/);
       expect(v.files[0].role).toBe('auto');
+      // marca o vídeo como HERO explicitamente (cenário do bug)
+      const r = await api<any>('PATCH', `/prospects/${id}/uploads`, { path: v.files[0].path, role: 'hero' });
+      expect(r.photos.find((a: any) => a.path === v.files[0].path)).toMatchObject({
+        role: 'hero',
+        kind: 'video',
+        mime: 'video/mp4',
+      });
     }
     const after = await waitJobs(`/prospects/${id}`);
     expect(after.photos.length).toBe(hasFfmpeg ? 5 : 4);
@@ -191,10 +203,66 @@ describe('V2 — fluxo criativo completo (fixture Mizuno, só teste)', () => {
       expect(html).toMatch(
         /<video class="hero__video" data-gz-video autoplay muted loop playsinline[^>]*poster="\.\/assets\/img\/[^"]+"/,
       );
-      const src = html.match(/<source src="([^"]+)" type="video\/webm">/)![1];
-      expect((await fetch(base + previewUrl + src.replace(/^\.\//, ''))).status).toBe(200);
+      // o vídeo é <video>, nunca <img>
+      expect(html).not.toMatch(/<img[^>]+\.mp4/);
+      expect(html).not.toContain('video porsche mizuno.mp4');
+      const src = html.match(/<source src="([^"]+)" type="video\/mp4">/)![1];
+      const res = await fetch(base + previewUrl + src.replace(/^\.\//, ''));
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toMatch(/video\/mp4/);
     }
+    // copy só com fatos: nenhuma alegação que o cliente não forneceu (garantia só porque está na ficha)
+    expect(html).not.toMatch(
+      /mec[âa]nicos experientes|Garantia nos servi[çc]os|diagn[óo]stico|pe[çc]as de qualidade|equipamentos modernos|anos de experi[êe]ncia|depoimentos/i,
+    );
+    expect(html).toContain('Garantia de 12 meses');
+    const qa = await api<any>('GET', `/previews/${previewId}/creative-qa`);
+    expect(qa.checks.find((c: any) => c.id === 'facts').status).toBe('pass');
   });
+
+  it('dev: Vite real (processo do dashboard) serve /previews/<id>/ e o vídeo via proxy; /api.ts continua sendo o módulo do painel', async () => {
+    // mesmo cenário do usuário: `vite` como processo separado, API em outra porta, proxy por prefixo
+    const port = 5300 + Math.floor(Math.random() * 500);
+    const vite = spawn(
+      process.platform === 'win32' ? 'npx.cmd' : 'npx',
+      ['vite', '--config', 'vite.config.ts', '--port', String(port), '--strictPort', '--host', '127.0.0.1'],
+      { cwd: process.cwd(), env: { ...process.env, PORT: new URL(base).port }, stdio: 'ignore' },
+    );
+    const devBase = `http://127.0.0.1:${port}`;
+    try {
+      const t = Date.now();
+      let up = false;
+      while (Date.now() - t < 40000 && !up) {
+        try {
+          up = (await fetch(devBase + '/')).status === 200;
+        } catch {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      expect(up).toBe(true);
+      const res = await fetch(devBase + previewUrl);
+      expect(res.status).toBe(200);
+      const page = await res.text();
+      expect(page).toContain('<html');
+      expect(page).toContain('Mizuno');
+      expect((await fetch(devBase + previewUrl.replace(/\/$/, ''))).status).toBe(200);
+      const apiTs = await fetch(devBase + '/api.ts');
+      expect(apiTs.status).toBe(200);
+      expect(apiTs.headers.get('content-type')).toMatch(/javascript/);
+      expect((await fetch(devBase + '/api/health')).status).toBe(200);
+      if (hasFfmpeg) {
+        const src = page.match(/<source src="([^"]+)" type="video\/mp4">/)![1];
+        const v = await fetch(devBase + previewUrl + src.replace(/^\.\//, ''));
+        expect(v.status).toBe(200);
+        expect(v.headers.get('content-type')).toMatch(/video\/mp4/);
+      }
+      // pasta da prévia apagada (ex.: data limpo) → re-renderiza da config e continua 200, nunca 404
+      fs.rmSync(path.join(process.env.GZ_DATA_DIR!, 'previews', previewId), { recursive: true, force: true });
+      expect((await fetch(devBase + previewUrl)).status).toBe(200);
+    } finally {
+      vite.kill();
+    }
+  }, 90000);
 
   it('no navegador: vídeo toca silencioso e inline (autoplay), sem erros de JS, sem overflow horizontal', async () => {
     const browser = await chromium.launch();
@@ -203,21 +271,37 @@ describe('V2 — fluxo criativo completo (fixture Mizuno, só teste)', () => {
         const page = await browser.newPage({ viewport: { width, height: 900 } });
         const errors: string[] = [];
         page.on('pageerror', (e) => errors.push(e.message));
+        const videoResponses: { url: string; status: number; type: string | null }[] = [];
+        page.on('response', (r) => {
+          if (/\.(mp4|webm)(\?|$)/i.test(r.url()))
+            videoResponses.push({
+              url: r.url(),
+              status: r.status(),
+              type: r.headers()['content-type'] ?? null,
+            });
+        });
         await page.goto(base + previewUrl, { waitUntil: 'load' });
-        await page.waitForTimeout(1200);
+        await page.waitForTimeout(1500);
         const st = (await page.evaluate(
-          `(() => { const v = document.querySelector('video[data-gz-video]'); return { video: v ? { paused: v.paused, muted: v.muted, inline: v.hasAttribute('playsinline'), ready: v.readyState, current: v.currentTime } : null, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, motion: document.documentElement.dataset.motion, gz: !!window.GZ }; })()`,
+          `(() => { const v = document.querySelector('video[data-gz-video]'); return { video: v ? { paused: v.paused, muted: v.muted, inline: v.hasAttribute('playsinline'), ready: v.readyState, current: v.currentTime, src: v.currentSrc, tag: v.tagName } : null, imgMp4: !!document.querySelector('img[src$=".mp4"]'), overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, motion: document.documentElement.dataset.motion, gz: !!window.GZ }; })()`,
         )) as any;
         expect(errors).toEqual([]);
+        expect(st.imgMp4).toBe(false);
         expect(st.overflow).toBe(false);
         expect(st.gz).toBe(true);
         expect(st.motion).toBe('performance');
         if (hasFfmpeg) {
           expect(st.video).not.toBeNull();
+          expect(st.video.tag).toBe('VIDEO');
+          expect(st.video.src).toMatch(/\.mp4$/);
           expect(st.video.muted).toBe(true);
           expect(st.video.inline).toBe(true);
           expect(st.video.paused).toBe(false);
           expect(st.video.ready).toBeGreaterThan(0);
+          // request real do vídeo com 200 (ou 206 parcial) e content-type de vídeo
+          expect(videoResponses.length).toBeGreaterThan(0);
+          expect(videoResponses.every((r) => r.status === 200 || r.status === 206)).toBe(true);
+          expect(videoResponses[0].type).toMatch(/video\/mp4/);
         }
         await page.close();
       }

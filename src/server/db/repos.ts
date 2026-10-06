@@ -1,6 +1,7 @@
 /**
  * Repositórios: traduzem linhas SQL ↔ objetos do domínio. Toda escrita passa por aqui.
  */
+import { normalizeAsset, type ProspectAsset } from '@shared/v2';
 import { randomUUID } from 'node:crypto';
 import type { Database, Row } from './database';
 import type {
@@ -59,7 +60,7 @@ function rowToProspect(r: Row): Prospect {
     nextFollowupAt: (r.next_followup_at as string) ?? null,
     tags: pj(r.tags, []),
     logoPath: (r.logo_path as string) ?? null,
-    photos: pj(r.photos, []),
+    photos: (pj(r.photos, []) as ProspectAsset[]).map(normalizeAsset),
     services: pj(r.services, []),
     differentials: pj(r.differentials, []),
     brandColors: pj(r.brand_colors, []),

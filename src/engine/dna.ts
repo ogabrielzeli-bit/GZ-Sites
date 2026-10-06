@@ -452,7 +452,7 @@ const SUB_INDUSTRIES: {
   {
     id: 'estetica-automotiva',
     label: 'Estética automotiva',
-    re: /est[ée]tica automotiva|detailing|polimento|vitrifica|lavagem|higieniza[çc][ãa]o (de )?(bancos|interna)|insulfilm|pel[íi]cula/i,
+    re: /est[ée]tica automotiva|detailing|polimento|vitrifica|cristaliza|encera|lavagem|lava[- ]?(jato|r[áa]pido)|higieniza|insulfilm|pel[íi]cula|\bppf\b|envelopamento|limpeza (de )?(bancos|estofado|interna)/i,
     apply: {
       industry: 'Estética automotiva',
       positioning: 'cuidado automotivo completo, do detalhe ao brilho',

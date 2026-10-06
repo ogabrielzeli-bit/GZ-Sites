@@ -64,6 +64,14 @@ Providers plugáveis: **Netlify** (`NETLIFY_AUTH_TOKEN` no `.env` do backend; si
 
 5 tipos (primeira abordagem, enviar prévia, follow-up, preço, fechamento). Cada frase é condicional ao que **existe no banco**: site auditado (cita 2 oportunidades reais) ou sem site; prévia local ou publicada (link certo); vídeo usado; nº de unidades; proposta (preço/prazo) ou tabela padrão; nome do responsável. Curtas, humanas, sem inventar. Na aba Mensagens: "Mensagem adaptativa" → Copiar / Usar no editor / WhatsApp.
 
+## 7b. Política "só fatos" (copy)
+
+No fluxo V2 (`factsOnly`), o site **nunca** usa a copy genérica da biblioteca de segmentos para alegar algo específico. Regras aplicadas em `src/engine/generate.ts` + `factualContent()` em `compose.ts`:
+
+- **Entra**: serviços cadastrados (descrição só se informada), diferenciais informados ou extraídos de fonte verificada, unidades/endereço/horário, cidade, posicionamento da pesquisa, frases genéricas sem alegação ("Chame no WhatsApp", "Como funciona").
+- **Nunca entra**: garantia, anos de experiência, certificações, equipe especializada, equipamentos modernos, peças de qualidade, números, avaliações/depoimentos, diferenciais inventados, badges do hero. Seções que dependeriam disso (depoimentos, números, equipe, comparativo, "projetos" fictícios) são **omitidas**; "Sobre", FAQ, marquee e "Como funciona" são montados a partir dos dados reais.
+- **Guarda**: `unverifiedClaims()` em `src/qa/creative.ts` varre toda a copy do site contra os fatos fornecidos e vira o check **"Copy sem alegações não fornecidas"** do Creative QA (para estética automotiva também bloqueia linguagem de oficina mecânica/diagnóstico). O modo clássico V1 continua com a biblioteca completa.
+
 ## 8. Creative QA (`src/qa/creative.ts`)
 
 Score 0–100 por prévia: assets reais, hero alinhado ao DNA, headline com serviços, variedade de seções, contraste (WCAG) da paleta, CTA + contato + WhatsApp, unidades quando há várias, sem lorem, e **similaridade** com as outras prévias do cliente (fingerprint de seções/variantes; ≥ 85% = aviso "quase igual"). Visível na página da prévia.
@@ -84,6 +92,10 @@ POST /api/prospects/:id/messages/adaptive     { kind, previewId?, proposalId? }
 ## 10. O que é só regra vs. o que a IA pode melhorar (opcional)
 
 Tudo acima funciona com `AI_PROVIDER=none`. A IA (quando configurada) continua restrita ao que já existia: resumo de auditoria e adaptação de tom de mensagens. DNA, direções, composição, copy, QA e publicação **não usam IA**.
+
+## 10b. Vídeo: como o tipo do asset sobrevive de ponta a ponta
+
+Upload valida o MIME e grava `kind`, `mime` e o arquivo com extensão derivada do MIME (`.mp4/.webm/.mov`); nomes são slugificados (sem espaços). Ao ler do banco, `normalizeAsset()` recompõe `kind` para assets antigos (gravado > MIME > extensão do caminho gravado pelo servidor; nunca pelo nome original). O composer só considera `kind: 'video'` para o hero; o fluxo V1 descarta vídeos das fotos; e o renderer **recusa** renderizar um caminho de vídeo como `<img>` (placeholder + aviso). O `<video>` sai com `<source>` WebM (se houver) antes do MP4, caminho copiado para `assets/video/` e URL encodada.
 
 ## 11. Limitações conhecidas
 

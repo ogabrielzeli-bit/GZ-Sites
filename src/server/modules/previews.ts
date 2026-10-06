@@ -6,18 +6,22 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { ImageRef, SiteConfig } from '@shared/site-config';
 import type { Prospect, Settings } from '@shared/schemas';
+import { assetKindOf } from '@shared/v2';
 import { generateSiteConfig, renderSite, writeRenderedSite, type GenerateInput } from '../../engine';
 import { env } from '../env';
 import type { Repos } from '../db/repos';
 
 export function prospectImages(p: Prospect): { logo: ImageRef | null; photos: ImageRef[] } {
   const logo: ImageRef | null = p.logoPath ? { src: p.logoPath, alt: p.name } : null;
-  const photos: ImageRef[] = p.photos.map((ph) => ({
-    src: ph.path,
-    alt: ph.name,
-    width: ph.width,
-    height: ph.height,
-  }));
+  // só imagens: um vídeo nunca pode virar <img> (o fluxo V2 usa o vídeo no hero)
+  const photos: ImageRef[] = p.photos
+    .filter((ph) => assetKindOf(ph) === 'image')
+    .map((ph) => ({
+      src: ph.path,
+      alt: ph.name.replace(/\.[a-z0-9]+$/i, ''),
+      width: ph.width,
+      height: ph.height,
+    }));
   return { logo, photos };
 }
 
@@ -120,6 +124,24 @@ export function updatePreview(repos: Repos, previewId: string, config: unknown, 
   writeRenderedSite(site, preview.path);
   repos.previews.updateConfig(previewId, site.config, notes);
   return repos.previews.get(previewId)!;
+}
+
+/**
+ * Garante que os arquivos da prévia existem em data/previews/<id>/ (re-renderiza da config salva se
+ * sumiram: pasta data apagada, import de backup sem arquivos, render interrompido). Retorna a pasta ou null.
+ */
+export function ensurePreviewFiles(repos: Repos, previewId: string): string | null {
+  const preview = repos.previews.get(previewId);
+  if (!preview) return null;
+  const dir = path.join(env.previewsDir, previewId);
+  if (fs.existsSync(path.join(dir, 'index.html'))) return dir;
+  const site = renderSite(
+    { ...(preview.config as object), previewMode: true },
+    { localFile: resolveUploadPath },
+  );
+  writeRenderedSite(site, dir);
+  console.warn(`[previews] arquivos da prévia ${previewId} não existiam — re-renderizados em ${dir}`);
+  return dir;
 }
 
 export function deletePreview(repos: Repos, previewId: string) {

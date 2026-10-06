@@ -141,6 +141,14 @@ function baseInput(p: Prospect, settings: Settings) {
     logo: p.logoPath ? { src: p.logoPath, alt: p.name } : null,
     services: p.services,
     differentials: p.differentials,
+    // fatos verificados: só o que a pesquisa extraiu de fontes lidas com sucesso
+    verifiedFacts: p.research
+      ? {
+          differentials: p.research.facts.differentials,
+          hours: p.research.facts.hours,
+          positioning: p.research.facts.positioning,
+        }
+      : undefined,
     credits: { name: settings.agencyName, url: settings.website || undefined },
     previewMode: true,
   };
@@ -191,6 +199,7 @@ export function createComposedPreview(repos: Repos, p: Prospect, opts: ComposeOp
     site.config,
     meta,
     siblings.map((s) => ({ id: s.id, fingerprint: s.meta.fingerprint })),
+    allowedFactsText(p),
   ).score;
   const preview = repos.previews.create({
     id,
@@ -244,14 +253,29 @@ export function setPreviewLocks(repos: Repos, previewId: string, locks: string[]
   return repos.previews.get(previewId)!;
 }
 
+/** Texto com tudo que o cliente informou/pesquisa verificou — base para validar alegações da copy. */
+export function allowedFactsText(p: Prospect): string {
+  const r = p.research?.facts;
+  return [
+    p.name,
+    p.notes,
+    ...p.services.map((s) => `${s.title} ${s.description ?? ''}`),
+    ...p.differentials,
+    ...p.locations.map((l) => `${l.name} ${l.address} ${l.openingHours}`),
+    ...(r ? [...r.services, ...r.differentials, ...r.positioning, ...r.hours] : []),
+  ].join('\n');
+}
+
 export function previewCreativeReport(repos: Repos, previewId: string) {
   const prev = repos.previews.get(previewId);
   if (!prev) throw new Error('Prévia não encontrada');
+  const p = repos.prospects.get(prev.prospectId);
   const siblings = repos.previews.listByProspect(prev.prospectId).filter((s) => s.id !== prev.id);
   return creativeQa(
     prev.config as SiteConfig,
     prev.meta,
     siblings.map((s) => ({ id: s.id, fingerprint: s.meta.fingerprint })),
+    p ? allowedFactsText(p) : '',
   );
 }
 

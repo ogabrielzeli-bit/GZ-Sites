@@ -60,6 +60,10 @@ npm run build && npm start   # produção
 - **Prévias V1 e V2 convivem** na mesma tabela: `previews.meta` vazio = V1 (tema/variação); com `direction` = V2. `POST /previews` sem `directionId` mantém o fluxo V1.
 - **Segredos só no backend**: `NETLIFY_AUTH_TOKEN`/`PUBLISH_PROVIDER` vêm do `.env`; o painel só lê `GET /publish/status`.
 - **Vídeo** depende de `ffmpeg`/`ffprobe` do sistema (ou `FFMPEG_PATH`) para poster/otimização; sem eles, degrada sem erro. O ffmpeg embutido do Playwright é só WebM e não serve.
+- **Asset de vídeo**: `kind` é normalizado ao ler do banco (`normalizeAsset`, de MIME/extensão gravada); o renderer nunca aceita vídeo em `<img>`. Uploads antigos (V1) sem `kind` funcionam.
+- **Copy V2 é "só fatos"** (`factsOnly` em `generateSiteConfig`): nada da biblioteca que alegue garantia/anos/equipe/números; seções sem dados reais são omitidas. `unverifiedClaims()` é o guarda. V1 clássico mantém a biblioteca.
+- **`/previews/<id>/` se auto-regenera**: se a pasta sumiu mas a prévia existe no banco, o servidor re-renderiza da config (`ensurePreviewFiles`). HTML da prévia sai com `no-cache`.
+- **Vite lê a porta da API do `.env`** (`PORT`), como o servidor — evita proxy apontando para a porta errada.
 - **Pesquisa pública é extrativa** (regex/DOM, sem IA) e por fonte isolada: uma fonte bloqueada vira `{ok:false,error}` e o resto segue.
 
 ## 6. Estado atual (testado)

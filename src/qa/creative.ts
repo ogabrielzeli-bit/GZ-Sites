@@ -25,10 +25,67 @@ export interface CreativeReport {
 
 const LOREM = /lorem ipsum|dolor sit amet/i;
 
+/** Alegações específicas que só podem aparecer se vierem dos dados do cliente. */
+const CLAIM_PATTERNS: { id: string; re: RegExp }[] = [
+  { id: 'garantia', re: /\bgarantia\b/i },
+  {
+    id: 'anos de experiência',
+    re: /\banos de (experi[êe]ncia|mercado|hist[óo]ria|estrada)|\b\d{1,2}\+?\s*anos\b|desde (19|20)\d\d/i,
+  },
+  { id: 'certificação', re: /certifica[çc][ãa]o|certificad[oa]s?\b|credenciad[oa]s?\b/i },
+  {
+    id: 'equipe especializada',
+    re: /equipe (especializada|qualificada|treinada|experiente)|profissionais (experientes|qualificados|certificados|especializados)|(mec[âa]nicos|t[ée]cnicos) (experientes|especializados)/i,
+  },
+  {
+    id: 'equipamentos modernos',
+    re: /equipamentos? (modernos?|de ponta|de [úu]ltima gera[çc][ãa]o|novos?)|tecnologia de ponta/i,
+  },
+  {
+    id: 'peças de qualidade',
+    re: /pe[çc]as (originais|de qualidade|genu[íi]nas)|produtos (premium|de qualidade|importados)/i,
+  },
+  {
+    id: 'números',
+    re: /\+?\d[\d.]*\s*(mil\s+)?(clientes|carros|ve[íi]culos|projetos|atendimentos|obras|entregas|avalia[çc][õo]es)\b/i,
+  },
+  { id: 'avaliações', re: /avalia[çc][õo]es|\b5 estrelas|\bnota (4|5)[.,]\d|⭐/i },
+  { id: 'diagnóstico/mecânica (para estética)', re: /diagn[óo]stico|mec[âa]nic[ao]s?\b|revis[ãa]o/i },
+];
+
+/**
+ * Procura, em toda a copy do site, alegações específicas que não estão nos dados fornecidos.
+ * `allowedText` = tudo que o cliente informou (serviços, diferenciais, observações, pesquisa verificada).
+ * Retorna os ids das alegações encontradas sem respaldo.
+ */
+export function unverifiedClaims(
+  config: SiteConfig,
+  allowedText = '',
+  opts: { segment?: string; subIndustry?: string } = {},
+): string[] {
+  const copyText = [
+    config.brand.tagline,
+    config.business.description,
+    config.seo.description,
+    JSON.stringify(config.pages),
+    JSON.stringify(config.business.differentials),
+  ].join('\n');
+  const out: string[] = [];
+  for (const c of CLAIM_PATTERNS) {
+    // "diagnóstico/mecânica" só é alegação indevida quando o negócio é estética automotiva
+    if (c.id.startsWith('diagnóstico') && !/est[ée]tica automotiva|detailing/i.test(opts.subIndustry ?? ''))
+      continue;
+    if (c.re.test(copyText) && !c.re.test(allowedText)) out.push(c.id);
+  }
+  return out;
+}
+
 export function creativeQa(
   config: SiteConfig,
   meta: PreviewMeta = {},
   siblings: { id: string; fingerprint?: string }[] = [],
+  /** texto com os fatos fornecidos pelo cliente (para validar alegações da copy) */
+  allowedText = '',
 ): CreativeReport {
   const checks: CreativeCheck[] = [];
   const warnings: string[] = [];
@@ -94,7 +151,7 @@ export function creativeQa(
   add(
     'variety',
     'Variedade de seções',
-    distinct >= 8 ? true : distinct >= 5 ? 'warn' : false,
+    distinct >= 7 ? true : distinct >= 5 ? 'warn' : false,
     10,
     `${distinct} tipos de seção.`,
   );
@@ -151,6 +208,18 @@ export function creativeQa(
     5,
     LOREM.test(text) ? 'Encontrado "Lorem ipsum".' : undefined,
   );
+
+  // 7b. Só fatos: nenhuma alegação específica sem respaldo nos dados do cliente (só avaliado no fluxo V2)
+  if (meta.dna) {
+    const claims = unverifiedClaims(config, allowedText, { subIndustry: meta.dna.subIndustry });
+    add(
+      'facts',
+      'Copy sem alegações não fornecidas',
+      claims.length === 0 ? true : claims.length <= 1 ? 'warn' : false,
+      15,
+      claims.length ? `alegações sem respaldo: ${claims.join(', ')}` : undefined,
+    );
+  }
 
   // 8. Similaridade com outras prévias do cliente
   let maxSim = 0;

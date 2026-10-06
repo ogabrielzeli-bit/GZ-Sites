@@ -2,14 +2,15 @@
  * Site Composer adaptativo — BusinessDNA + direção criativa + assets → composição de seções,
  * copy baseada em serviços reais e parâmetros de tema/motion. Determinístico por seed.
  */
-import type {
-  BusinessDNA,
-  CreativeDirection,
-  CreativityLevel,
-  Location,
-  ProspectAsset,
-  ImageAnalysis,
-  VideoAnalysis,
+import {
+  normalizeAsset,
+  type BusinessDNA,
+  type CreativeDirection,
+  type CreativityLevel,
+  type Location,
+  type ProspectAsset,
+  type ImageAnalysis,
+  type VideoAnalysis,
 } from '@shared/v2';
 import type { ImageRef, SiteConfig } from '@shared/site-config';
 import { hashString, seededRandom, uniq } from '@shared/utils';
@@ -25,6 +26,8 @@ export interface ComposeInput extends Omit<GenerateInput, 'theme' | 'layout' | '
   locations?: Location[];
   seed?: number;
   creativity?: CreativityLevel;
+  /** fatos verificados pela pesquisa pública (só de fontes lidas com sucesso) */
+  verifiedFacts?: { differentials?: string[]; hours?: string[]; positioning?: string[] };
 }
 
 export interface ComposeResult {
@@ -40,7 +43,8 @@ const pick = <T>(arr: readonly T[], rnd: Rnd): T => arr[Math.floor(rnd() * arr.l
 
 /** Separa os assets por função, respeitando papéis manuais (hero/gallery/background/none). */
 export function planAssets(assets: ProspectAsset[] = []) {
-  const usable = assets.filter((a) => a.role !== 'none');
+  // kind normalizado (gravado > MIME > extensão gravada pelo servidor): assets antigos sem `kind` também funcionam
+  const usable = assets.map(normalizeAsset).filter((a) => a.role !== 'none');
   const videos = usable.filter((a) => a.kind === 'video');
   const images = usable.filter((a) => a.kind !== 'video');
   const heroVideo =
@@ -66,6 +70,154 @@ export function planAssets(assets: ProspectAsset[] = []) {
     gallery: gallery.map(toRef),
     photos: images.map(toRef),
     toRef,
+  };
+}
+
+/**
+ * Fontes do vídeo do hero: MP4 (original ou otimizado) como base; WebM preferido quando existe
+ * (original .webm ou variante gerada), sempre com fallback. Nunca devolve um caminho sem extensão de vídeo.
+ */
+export function videoSources(v: ProspectAsset): {
+  src: string;
+  webm?: string;
+  poster?: string;
+  duration?: number;
+} {
+  const an = v.analysis as VideoAnalysis | undefined;
+  const isWebm = /\.webm$/i.test(v.path);
+  const mp4 = isWebm ? an?.optimized : (an?.optimized ?? v.path);
+  const webm = isWebm ? v.path : an?.webm;
+  const src = mp4 ?? webm ?? v.path;
+  return { src, webm: webm && webm !== src ? webm : undefined, poster: v.poster, duration: an?.duration };
+}
+
+/**
+ * Conteúdo "só fatos": tudo aqui vem da ficha, da pesquisa verificada ou é genérico sem alegar nada
+ * (nada de garantia, anos, equipe, equipamentos, números, avaliações inventados).
+ */
+export function factualContent(
+  dna: BusinessDNA,
+  input: Pick<
+    ComposeInput,
+    'name' | 'city' | 'state' | 'whatsapp' | 'phone' | 'email' | 'differentials' | 'verifiedFacts'
+  >,
+  services: string[],
+  locations: Location[],
+): NonNullable<GenerateInput['content']> {
+  const city = input.city;
+  const lcInd = dna.subIndustry.charAt(0).toLowerCase() + dna.subIndustry.slice(1);
+  const svcList = (n: number) =>
+    services
+      .slice(0, n)
+      .join(', ')
+      .replace(/, ([^,]*)$/, ' e $1');
+  const differentials = uniq([
+    ...(input.differentials ?? []),
+    ...(input.verifiedFacts?.differentials ?? []),
+  ]).filter(Boolean);
+  const hours = uniq([
+    ...locations.map((l) => l.openingHours).filter(Boolean),
+    ...(input.verifiedFacts?.hours ?? []),
+  ]);
+  const contactWord = input.whatsapp
+    ? 'WhatsApp'
+    : input.phone
+      ? 'telefone'
+      : input.email
+        ? 'e-mail'
+        : 'formulário';
+  const positioning = (input.verifiedFacts?.positioning ?? []).find((p) => p.length > 20 && p.length < 160);
+
+  const paragraphs: string[] = [];
+  paragraphs.push(
+    `${input.name} é ${lcInd}${city ? ` em ${city}${input.state ? `/${input.state}` : ''}` : ''}.${services.length ? ` Trabalhamos com ${svcList(5)}.` : ''}`,
+  );
+  if (positioning) paragraphs.push(positioning.replace(/\.?$/, '.'));
+  if (differentials.length)
+    paragraphs.push(
+      `${differentials.length > 1 ? 'Diferenciais' : 'Diferencial'}: ${differentials.join(', ').replace(/, ([^,]*)$/, ' e $1')}.`,
+    );
+  paragraphs.push(
+    `${locations.length > 1 ? `${locations.length} unidades. ` : ''}Atendimento pelo ${contactWord}${hours.length ? ` · ${hours[0]}` : ''}.`,
+  );
+
+  const faqs: { question: string; answer: string }[] = [];
+  if (services.length)
+    faqs.push({
+      question: 'Quais serviços vocês fazem?',
+      answer: `${svcList(8)}. Se precisar de algo diferente, pergunte pelo ${contactWord}.`,
+    });
+  faqs.push({
+    question:
+      dna.conversionGoal === 'agendamento'
+        ? 'Como faço para agendar?'
+        : dna.conversionGoal === 'reserva'
+          ? 'Como faço uma reserva?'
+          : 'Como peço um orçamento?',
+    answer: `Pelo ${contactWord}: diga o que precisa e combinamos o próximo passo.`,
+  });
+  const addr = locations.find((l) => l.address || l.city);
+  if (addr)
+    faqs.push({
+      question: locations.length > 1 ? 'Onde ficam as unidades?' : 'Onde fica?',
+      answer: locations.map((l) => [l.name, l.address, l.city].filter(Boolean).join(' · ')).join(' / '),
+    });
+  else if (city)
+    faqs.push({
+      question: `Vocês atendem em ${city}?`,
+      answer: `Sim, atendemos em ${city}${input.state ? ` e região` : ''}.`,
+    });
+  if (hours.length) faqs.push({ question: 'Qual é o horário de atendimento?', answer: hours.join(' · ') });
+
+  const stepsByGoal: Record<BusinessDNA['conversionGoal'], { title: string; description: string }[]> = {
+    agendamento: [
+      { title: 'Chame', description: `Mande uma mensagem pelo ${contactWord} dizendo o que precisa.` },
+      { title: 'Combine', description: 'Alinhamos o serviço, o dia e o horário.' },
+      { title: 'Pronto', description: 'Você recebe tudo combinado, sem surpresa.' },
+    ],
+    orcamento: [
+      { title: 'Conte o que precisa', description: `Pelo ${contactWord}, com fotos ou medidas se tiver.` },
+      { title: 'Receba o orçamento', description: 'Detalhado, antes de qualquer trabalho começar.' },
+      { title: 'Aprovou, começamos', description: 'Com prazo e escopo combinados.' },
+    ],
+    contato: [
+      { title: 'Fale com a gente', description: `Pelo ${contactWord} ou pelo formulário.` },
+      { title: 'Entendemos o caso', description: 'Conversamos sobre o que você precisa.' },
+      { title: 'Próximos passos', description: 'Combinamos como seguir.' },
+    ],
+    compra: [
+      { title: 'Escolha', description: 'Veja o que temos e tire dúvidas.' },
+      { title: 'Peça', description: `Pelo ${contactWord}, com o que você quer.` },
+      { title: 'Receba', description: 'Combinamos retirada ou entrega.' },
+    ],
+    reserva: [
+      { title: 'Escolha o dia', description: 'Diga data, horário e quantas pessoas.' },
+      { title: 'Confirme', description: `Pelo ${contactWord}, em poucos minutos.` },
+      { title: 'Aproveite', description: 'Mesa reservada no seu nome.' },
+    ],
+    visita: [
+      { title: 'Veja onde fica', description: 'Endereço e horário logo abaixo.' },
+      { title: 'Chame antes, se quiser', description: `Pelo ${contactWord} tiramos dúvidas.` },
+      { title: 'Venha', description: 'Será um prazer receber você.' },
+    ],
+  };
+
+  return {
+    tagline: dna.positioning.replace(/\.$/, ''),
+    seoDescription: `${input.name}${city ? ` em ${city}` : ''}: ${services.length ? svcList(4) : lcInd}. Fale pelo ${contactWord}.`,
+    keywords: uniq([...services, dna.subIndustry, ...(city ? [`${lcInd} ${city}`] : [])]),
+    about: { paragraphs, highlights: differentials.slice(0, 4).map((d) => ({ title: d })) },
+    faqs,
+    steps: stepsByGoal[dna.conversionGoal] ?? stepsByGoal.contato,
+    marquee: uniq([...services, ...(city ? [city] : [])]).slice(0, 8),
+    benefits: differentials.map((d) => ({ title: d, description: '' })),
+    servicesHead: {
+      eyebrow: 'Serviços',
+      title: 'O que *fazemos*',
+      intro: city ? `${dna.subIndustry} em ${city}.` : undefined,
+    },
+    contactIntro: `Chame no ${contactWord}${locations.length ? ' ou venha nos visitar' : ''}. Respondemos o quanto antes.`,
+    galleryTitle: 'Nosso *trabalho*',
   };
 }
 
@@ -173,6 +325,7 @@ function composition(
   creativity: CreativityLevel,
   locations: Location[],
   seed = 0,
+  hasDifferentials = false,
 ): Blueprint[] {
   const manyPhotos = plan.gallery.length >= 4;
   const hasVideo = !!plan.heroVideo;
@@ -330,6 +483,35 @@ function composition(
     ],
   };
   let list = base[id];
+  // só fatos: depoimentos, números, equipe, comparativo e "projetos" com nomes fictícios nunca entram;
+  // diferenciais só com dados reais; projetos viram galeria quando há fotos.
+  const FABRICATED = new Set(['testimonials', 'numbers', 'statistics', 'team', 'comparison']);
+  list = list
+    .filter((b) => !FABRICATED.has(b.type))
+    .map((b) =>
+      b.type === 'projects' || b.type === 'portfolio-masonry'
+        ? plan.gallery.length
+          ? T('gallery', galleryVariant, 'gallery', b.tone)
+          : null
+        : b,
+    )
+    .filter((b): b is Blueprint => !!b)
+    .filter((b) => !((b.type === 'benefits' || b.type === 'horizontal-scroll') && !hasDifferentials));
+  // sem foto nenhuma: galeria e antes/depois não fazem sentido
+  if (!plan.gallery.length) list = list.filter((b) => b.type !== 'gallery' && b.type !== 'before-after');
+  // garante "sobre" e FAQ (conteúdo factual) quando o arquétipo ficou enxuto
+  if (!list.some((b) => b.type === 'about'))
+    list.splice(
+      list.findIndex((b) => b.type === 'cta'),
+      0,
+      T('about', 'split', 'about', 'alt'),
+    );
+  if (!list.some((b) => b.type === 'faq') && dna.contentDensity !== 'low')
+    list.splice(
+      list.findIndex((b) => b.type === 'cta'),
+      0,
+      T('faq', 'stacked', 'faq'),
+    );
   // densidade: conteúdo baixo remove uma seção informativa; alto adiciona FAQ
   if (dna.contentDensity === 'low')
     list = list.filter((b, i) => !(b.type === 'faq' && i > 4) && b.type !== 'comparison');
@@ -450,11 +632,12 @@ export function composeSite(input: ComposeInput): ComposeResult {
     input.creativity ?? 'equilibrado',
     locations,
     seed,
+    !!(input.differentials?.length || input.verifiedFacts?.differentials?.length),
   );
   const { headline, sub } = generateHeadline(dna, rnd, input.city, input.name);
   const final = finalCtaCopy(dna, input.name, rnd);
   const video = plan.heroVideo;
-  const videoAnalysis = video?.analysis as VideoAnalysis | undefined;
+  const videoSrc = video ? videoSources(video) : undefined;
   const themeOverrides: SiteConfig['theme']['overrides'] = {
     colors:
       direction.palette.bg || direction.palette.accent
@@ -470,10 +653,21 @@ export function composeSite(input: ComposeInput): ComposeResult {
   const services: { title: string; description?: string }[] = (
     input.services?.length ? input.services : dna.keyServices.map((t) => ({ title: t }))
   ).map((s: { title: string; description?: string }) => ({ title: s.title, description: s.description }));
+  const content = factualContent(
+    dna,
+    input,
+    services.map((sv) => sv.title),
+    locations,
+  );
   const { config } = generateSiteConfig({
     ...input,
+    factsOnly: true,
+    content,
     services,
-    differentials: input.differentials?.length ? input.differentials : undefined,
+    differentials: uniq([
+      ...(input.differentials ?? []),
+      ...(input.verifiedFacts?.differentials ?? []),
+    ]).filter(Boolean),
     photos: plan.photos,
     theme: direction.theme,
     blueprints,
@@ -486,13 +680,7 @@ export function composeSite(input: ComposeInput): ComposeResult {
       primaryCta: dna.primaryCTA,
       secondaryCta: dna.secondaryCTA,
       image: plan.heroImage,
-      video: video
-        ? {
-            src: videoAnalysis?.optimized ?? video.path,
-            poster: video.poster,
-            duration: videoAnalysis?.duration,
-          }
-        : undefined,
+      video: videoSrc,
       services: dna.priorityServices.slice(0, 4),
     },
     finalCta: final,

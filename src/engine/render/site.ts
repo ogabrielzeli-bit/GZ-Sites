@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ImageRef, PageConfig, SiteConfig } from '@shared/site-config';
 import { parseSiteConfig } from '@shared/site-config';
+import { VIDEO_EXT_RE } from '@shared/v2';
 import { escapeHtml, formatPhoneBR, instagramUrl, whatsappLink } from '@shared/utils';
 import { getTheme, googleFontsUrl, type Theme } from '../themes';
 import { buildCss } from '../css';
@@ -69,12 +70,13 @@ export function renderSite(input: SiteConfig | unknown, opts: RenderOptions = {}
     const abs = localFile(src);
     if (abs && fs.existsSync(abs)) {
       const name = path.basename(abs);
-      const out = `assets/${/\.(mp4|webm|mov|m4v)$/i.test(name) ? 'video' : 'img'}/${name}`;
+      const out = `assets/${VIDEO_EXT_RE.test(name) ? 'video' : 'img'}/${name}`;
       if (!emitted.has(out)) {
         files.set(out, fs.readFileSync(abs));
         emitted.add(out);
       }
-      return out;
+      // URL segura mesmo com espaços/acentos no nome do arquivo
+      return out.split('/').map(encodeURIComponent).join('/');
     }
     if (src.startsWith('assets/')) return src;
     warnings.push(`Imagem não encontrada: ${src}`);
@@ -84,6 +86,13 @@ export function renderSite(input: SiteConfig | unknown, opts: RenderOptions = {}
   function makeAssets(base: string): AssetResolver {
     return {
       image(ref: ImageRef | undefined | null, o): ResolvedImage {
+        if (ref?.src && VIDEO_EXT_RE.test(ref.src)) {
+          // um vídeo nunca pode ser renderizado como <img>: cai para placeholder e avisa
+          warnings.push(
+            `Vídeo usado como imagem (${ref.src}) em "${o.key}" — ignorado; use o hero em vídeo.`,
+          );
+          ref = null;
+        }
         if (ref?.src && !ref.placeholder) {
           const rel = assetFor(ref.src);
           const isLocal = !/^(https?:)?\/\//.test(rel) && !rel.startsWith('data:');

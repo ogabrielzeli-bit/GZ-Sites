@@ -27,7 +27,8 @@ export interface VideoAnalysis {
   bytes: number;
   codec?: string;
   sizeWarning?: string;
-  optimized?: string; // caminho público do webm otimizado
+  optimized?: string; // caminho público do MP4 otimizado (720p, sem áudio)
+  webm?: string; // caminho público de uma variante WebM, se existir (preferida com fallback MP4)
 }
 
 export const AssetRole = z.enum(['auto', 'hero', 'gallery', 'background', 'none']);
@@ -36,6 +37,8 @@ export type AssetRole = z.infer<typeof AssetRole>;
 export interface ProspectAsset {
   path: string;
   name: string;
+  /** MIME validado no upload (ex.: video/mp4, image/webp) */
+  mime?: string;
   kind?: 'image' | 'video';
   role?: AssetRole;
   width?: number;
@@ -45,6 +48,24 @@ export interface ProspectAsset {
   bytes?: number;
   analysis?: ImageAnalysis | VideoAnalysis;
   variants?: { width: number; path: string }[];
+}
+
+/** Extensões de vídeo que o servidor grava a partir do MIME validado no upload. */
+export const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i;
+
+/**
+ * Tipo do asset com fallback seguro: `kind` gravado > MIME validado > extensão do caminho gravado pelo
+ * servidor (que vem do MIME do upload). Nunca pelo nome original do arquivo.
+ */
+export function assetKindOf(a: { path?: string; mime?: string; kind?: string }): 'image' | 'video' {
+  if (a.kind === 'video' || a.kind === 'image') return a.kind;
+  if (a.mime) return a.mime.toLowerCase().startsWith('video/') ? 'video' : 'image';
+  return VIDEO_EXT_RE.test(a.path ?? '') ? 'video' : 'image';
+}
+export function normalizeAsset<
+  T extends { path: string; mime?: string; kind?: 'image' | 'video'; role?: AssetRole },
+>(a: T): T & { kind: 'image' | 'video'; role: AssetRole } {
+  return { ...a, kind: assetKindOf(a), role: a.role ?? 'auto' };
 }
 
 // ---------- Unidades ----------

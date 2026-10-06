@@ -174,7 +174,18 @@ export const SiteConfigSchema = z.object({
     hours: z.array(z.object({ days: z.string(), hours: z.string() })).default([]),
     serviceAreas: z.array(z.string()).default([]),
     locations: z
-      .array(z.object({ name: z.string().default(''), address: z.string().default(''), city: z.string().default(''), state: z.string().default(''), phone: z.string().default(''), whatsapp: z.string().default(''), mapsUrl: z.string().default(''), openingHours: z.string().default('') }))
+      .array(
+        z.object({
+          name: z.string().default(''),
+          address: z.string().default(''),
+          city: z.string().default(''),
+          state: z.string().default(''),
+          phone: z.string().default(''),
+          whatsapp: z.string().default(''),
+          mapsUrl: z.string().default(''),
+          openingHours: z.string().default(''),
+        }),
+      )
       .default([]),
   }),
   contact: z.object({
@@ -212,7 +223,9 @@ export const SiteConfigSchema = z.object({
       textReveal: z.boolean().default(true),
       smoothScroll: z.boolean().default(false),
       /** personalidade de motion (V2) */
-      profile: z.enum(['elegant', 'performance', 'technical', 'editorial', 'playful', 'minimal', 'cinematic']).default('elegant'),
+      profile: z
+        .enum(['elegant', 'performance', 'technical', 'editorial', 'playful', 'minimal', 'cinematic'])
+        .default('elegant'),
     })
     .default({
       enabled: true,
@@ -235,7 +248,16 @@ export const SiteConfigSchema = z.object({
   assets: z
     .object({
       images: z.array(ImageRef.extend({ id: z.string() })).default([]),
-      videos: z.array(z.object({ src: z.string(), poster: z.string().optional(), duration: z.number().optional() })).default([]),
+      videos: z
+        .array(
+          z.object({
+            src: z.string(),
+            webm: z.string().optional(),
+            poster: z.string().optional(),
+            duration: z.number().optional(),
+          }),
+        )
+        .default([]),
     })
     .default({ images: [], videos: [] }),
   pages: z.array(PageConfig).min(1),
