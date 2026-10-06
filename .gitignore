@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+dist-web/
+src/engine/runtime/dist/
+*.tsbuildinfo
+
+# dados do usuário (prospects, auditorias, prévias, projetos, uploads) — NUNCA versionar
+data/
+!data/.gitkeep
+
+# ambiente / credenciais
+.env
+.env.*
+!.env.example
+
+# logs / temporários
+*.log
+.DS_Store
+coverage/
+test-results/
+playwright-report/
+.vite/
