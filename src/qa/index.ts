@@ -341,8 +341,17 @@ async function testButtons(page: Page, base: string): Promise<QaCheck> {
 
 async function testForm(page: Page): Promise<QaCheck> {
   const form = page.locator('form[data-gz-form]').first();
-  if (!(await form.count()))
-    return { id: 'form', group: 'form', status: 'warning', title: 'Nenhum formulário encontrado' };
+  if (!(await form.count())) {
+    const hasWa = (await page.locator('a[href*="wa.me"]').count()) > 0;
+    return hasWa
+      ? {
+          id: 'form',
+          group: 'form',
+          status: 'pass',
+          title: 'Sem formulário nesta página (contato via WhatsApp)',
+        }
+      : { id: 'form', group: 'form', status: 'warning', title: 'Nenhum formulário nem WhatsApp encontrado' };
+  }
   try {
     await inPage(page, 'stubWindowOpen');
     await form.scrollIntoViewIfNeeded();

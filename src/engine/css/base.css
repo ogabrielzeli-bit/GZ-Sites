@@ -658,6 +658,7 @@ em.accent,
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  min-height: 2.75rem;
   white-space: nowrap;
   max-width: 60vw;
   overflow: hidden;
