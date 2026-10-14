@@ -14,7 +14,7 @@ Nenhum crédito de API foi gasto. A mão, o vidro, o site, a cartela e o som for
 ## Onde está o filme
 
 - Reels (versionado): `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16.mp4`
-- Master CRF 10, 127 MB, só na máquina de render: `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16_master.mp4`
+- Master H.264 High, CRF 14 (o CRF 10 passava de 100 MB e o GitHub recusa o push): `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16_master.mp4`
 - Áudio: `producao/gz-sites-comercial/audio/mix.wav`
 - Decupagem: `producao/gz-sites-comercial/roteiro/storyboard.md`
 - Projeto: `producao/gz-sites-comercial/cenas/`, `site/`, `end/`, `edit/`, `audio/`

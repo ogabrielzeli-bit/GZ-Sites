@@ -33,7 +33,7 @@ export const W_RELEASE = 0.26;
 export const W_IMPACT = 0.385;
 
 // Arremesso curto, para a frente da câmera. A taça fica no fim desse voo.
-export const P0 = { x: 0.0, y: 0.18, z: -0.06 };
+export const P0 = { x: 0.0, y: 0.34, z: -0.28 };
 export const P_REL = { x: 0.0, y: 0.22, z: 0.0 };
 export const V_REL = { x: 0.02, y: 0.72, z: 6.2 };
 export const G = 9.81;
@@ -46,10 +46,12 @@ export function flightDir() {
 }
 
 export function controlPoint() {
+  const len = Math.hypot(V_REL.x, V_REL.y, V_REL.z) || 1;
+  const k = 0.18;
   return {
-    x: P0.x * 0.35 + P_REL.x * 0.65,
-    y: Math.min(P0.y, P_REL.y) - 0.03,
-    z: P0.z * 0.4 + P_REL.z * 0.6,
+    x: P_REL.x - (V_REL.x / len) * k,
+    y: P_REL.y - (V_REL.y / len) * k,
+    z: P_REL.z - (V_REL.z / len) * k,
   };
 }
 
