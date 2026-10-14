@@ -40,7 +40,7 @@ Pico limitado a −1 dBFS se passar. O silêncio é de propósito: o RMS do film
 
 ## Montagem
 
-ffmpeg 6.1, libx264 high, AAC 192 kbps, 48 kHz, 30 fps constantes, `+faststart`. Master CRF 10. Reels CRF 16, a partir do master. Sem marca d'água.
+ffmpeg 6.1, libx264 high, AAC 192 kbps, 48 kHz, 30 fps constantes, `+faststart`. Master CRF 14 (~38 MB; o CRF 10 passava de 100 MB e o GitHub recusa o push). Reels CRF 16, a partir do master. Sem marca d'água.
 
 ## Narração
 

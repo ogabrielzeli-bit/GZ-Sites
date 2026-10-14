@@ -27,12 +27,12 @@ Custo: R$ 0 / US$ 0.
 
 | Peça | Caminho | No git |
 |---|---|---|
-| Master H.264 CRF 10 | `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16_master.mp4` | Não. 127 MB, acima do limite de ~80 MB. Fica na máquina de render. |
+| Master H.264 CRF 14 | `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16_master.mp4` | Sim. ~38 MB. O CRF 10 passava de 100 MB. |
 | Reels CRF 16 | `producao/gz-sites-comercial/exports/GZ_Sites_Comercial_9x16.mp4` | Sim. ~18 MB. |
 | Áudio | `producao/gz-sites-comercial/audio/mix.wav` | Sim. 30,0 s, 48 kHz, estéreo. |
 | Decupagem | `producao/gz-sites-comercial/roteiro/storyboard.md` | Sim. |
 | Técnicas | `producao/gz-sites-comercial/roteiro/tecnicas.md` | Sim. |
-| Cena | `producao/gz-sites-comercial/cenas/film.js`, `cenas/sim.mjs`, `cenas/film.html` | Sim. |
+| Cena | `producao/gz-sites-comercial/cenas/take.js`, `cenas/clock.mjs`, `cenas/film.html` | Sim. O HTML carrega `take.js`. |
 | Página e cartela | `producao/gz-sites-comercial/site/index.html`, `site/end.html` | Sim. |
 | Montagem | `producao/gz-sites-comercial/edit/assemble.py`, `edit/capture.mjs` | Sim. |
 
@@ -40,14 +40,14 @@ ffprobe do Reels: 30,016 s (o AAC acrescenta um priming; o master fecha em 30,00
 
 ## O que ainda fica aquém
 
-- A mão é um vislumbre na borda, com antebraço liso. Não é um arremesso anatômico.
+- A mão é um modelo de cápsulas, com antebraço liso e dedos fundidos. No quadro 8 o braço está estendido, com desfoque, soltando a esfera. Não é um scan.
 - Os planos abertos deixam esfera e taça pequenos no campo escuro. O suspense lê melhor a partir de ~1,3 s, quando a câmera fecha.
 - A taça é uma coupe reconhecível, sem refração de herói. Os cacos são cerca de 20 gomos grossos, não um vidro filmado em alta velocidade.
 - Há risco de banda de JPEG nos degradês largos. A montagem soma um grão leve.
-- A passagem 548–578 é um crossfade desenhado, não um morph. A esfera ainda pode estar no quadro por volta do 520. De ~18,3 s em diante a placa 3D segura: câmera e cacos já chegaram, e os quadros 550–578 saem iguais. A mudança visível nessa hora é o crossfade para o site.
+- Aos 15,45 s a câmera corta do macro para o plano da página. O crossfade 548–578 é desenhado, não um morph. A placa 3D assenta por volta de 17,2 s e segura até esse crossfade. A esfera ainda está no quadro nesse plano.
 - O site é legível e elegante, não é motion de nível Apple. Não há número inventado.
-- Não há ProRes. O master é H.264 CRF 10; o Reels é CRF 16.
+- Não há ProRes. O master versionado é H.264 CRF 14; o Reels é CRF 16.
 
 ## O que não foi reaberto
 
-Câmera e física não foram reabertas por gosto. O que se recapturou foi defeito: o composite `lighter` (fantasma aditivo) trocado pela média `source-over`, amostras a mais só no arremesso para dissolver as faixas do antebraço, e quadros que tinham sido sobrescritos fora do relógio travado (mão ainda em quadro depois da soltura, e o final 550–578 copiado 29 vezes). O contato no quadro 330 permaneceu em zero.
+O contato no quadro 330 permaneceu em zero. O que mudou na cena final foi o plano depois da quebra: um travelling que atravessava o vidro esvaziava o quadro, e no lugar entrou um corte para o plano frontal aos 15,45 s. O crossfade para o site continua nos quadros 548–578.

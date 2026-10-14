@@ -35,7 +35,7 @@ Amostras: 8 no quadro 0; 64 enquanto a mão ainda pode estar no obturador (`scre
 
 ## Montagem
 
-900 quadros, 30 fps, 1080×1920. JPEG 3D nos quadros 0–578. Crossfade 548–578 para o site. Site até 750. Crossfade 750–778 para a cartela. Cartela até 899. Grade leve na montagem. Master H.264 CRF 10, Rec.709, AAC 192 kbps, 48 kHz estéreo. Reels CRF 16 a partir do master. Sem ProRes. Sem marca d'água.
+900 quadros, 30 fps, 1080×1920. JPEG 3D nos quadros 0–578. Crossfade 548–578 para o site. Site até 750. Crossfade 750–778 para a cartela. Cartela até 899. Grade leve na montagem. Master H.264 CRF 14, Rec.709, AAC 192 kbps, 48 kHz estéreo, versionado (~38 MB). Reels CRF 16 a partir do master. Sem ProRes. Sem marca d'água.
 
 ## Som
 
