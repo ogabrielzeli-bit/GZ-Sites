@@ -1,0 +1,10 @@
+node_modules/
+package/
+cenas/frames/
+site/frames/
+end/frames/
+previz/
+qa/frames/
+qa/contact/
+*.log
+exports/GZ_Sites_Comercial_9x16_master.mp4
