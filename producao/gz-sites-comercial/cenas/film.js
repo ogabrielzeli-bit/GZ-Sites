@@ -465,7 +465,7 @@ function buildCracks() {
     const curve = new THREE.CatmullRomCurve3(pts);
     const tube = new THREE.Mesh(
       new THREE.TubeGeometry(curve, 28, 0.00115, 5, false),
-      new THREE.MeshBasicMaterial({ color: 0xf7fbff, transparent: true, opacity: 0.0, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: 0x14181c, transparent: true, opacity: 0.0, depthWrite: false })
     );
     tube.userData.mat = tube.material;
     group.add(tube);
@@ -562,22 +562,22 @@ function poseHand(screen) {
     vel = holdVelocity(w);
   } else {
     const dt = w - W_RELEASE;
-    const travel = 0.045 * (1 - Math.exp(-dt * 12));
+    const follow = 0.028 * (1 - Math.exp(-dt * 16));
     const dir = new THREE.Vector3(V_REL.x, V_REL.y, V_REL.z).normalize();
     pos = {
-      x: P_REL.x + dir.x * travel,
-      y: P_REL.y + dir.y * travel,
-      z: P_REL.z + dir.z * travel,
+      x: P_REL.x + dir.x * follow,
+      y: P_REL.y + dir.y * follow,
+      z: P_REL.z + dir.z * follow,
     };
     vel = V_REL;
   }
-  if (screen > 0.42) {
-    const s = screen - 0.42;
-    pos.y -= s * s * 2.6;
-    pos.x -= s * 0.04;
+  if (screen > 0.46) {
+    const s = screen - 0.46;
+    pos.y -= s * s * 1.15;
+    pos.z -= s * 0.22;
   }
   const dir = new THREE.Vector3(vel.x, vel.y, vel.z);
-  if (dir.length() < 1e-4) dir.set(1, 0, 0);
+  if (dir.length() < 1e-4) dir.set(0, 0.2, 1);
   dir.normalize();
   const yHint = new THREE.Vector3(0, 1, 0);
   if (Math.abs(dir.dot(yHint)) > 0.92) yHint.set(0, 0, 1);
@@ -585,7 +585,7 @@ function poseHand(screen) {
   const yAxis = new THREE.Vector3().crossVectors(zAxis, dir).normalize();
   hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(dir, yAxis, zAxis));
   hand.position.set(pos.x, pos.y, pos.z);
-  hand.visible = screen < 0.2;
+  hand.visible = screen < 0.7;
 }
 
 function placeShard(mesh, screen) {
@@ -627,7 +627,7 @@ function poseShards(screen) {
   const crackU = smoothstep(11.0, 11.42, screen);
   cracks.children.forEach((tube, i) => {
     const local = clamp((crackU * 1.15 - i * 0.035) / 0.85, 0, 1);
-    tube.material.opacity = local * 0.9;
+    tube.material.opacity = local * 0.72;
     tube.scale.setScalar(0.15 + local * 0.85);
   });
   if (screen >= 14.5 && !snapPose) {
@@ -643,7 +643,7 @@ function poseShards(screen) {
     if (screen < 14.5) {
       placeShard(mesh, screen);
     } else {
-      const u = smoothstep(14.5, 18.35, screen);
+      const u = smoothstep(14.55, 17.15, screen);
       const e = u * u * (3 - 2 * u);
       const from = snapPose[i].p;
       const target = mesh.userData.target.clone();
@@ -656,10 +656,12 @@ function poseShards(screen) {
   if (screen >= 12.1 && screen < 14.6) {
     const dt = Math.max(0, w - W_IMPACT);
     base.rotation.z = dt * 0.35;
-    base.position.x += 0;
     base.position.x = dt * 0.03;
   }
-  const lineU = smoothstep(16.2, 18.5, screen);
+  const drop = smoothstep(14.7, 15.35, screen);
+  stem.position.y = 0.072 - drop * 0.55;
+  base.position.y = 0.012 - drop * 0.55;
+  const lineU = smoothstep(15.75, 17.5, screen);
   rules.forEach((mesh) => {
     const u = clamp((lineU - mesh.userData.delay) / 0.55, 0, 1);
     const e = u * u * (3 - 2 * u);
@@ -682,51 +684,61 @@ function poseCamera(screen) {
   const g = new THREE.Vector3(place.worldContact.x, place.worldContact.y, place.worldContact.z);
   const v = new THREE.Vector3(place.dir.x, 0, place.dir.z).normalize();
   const side = new THREE.Vector3(-v.z, 0, v.x);
-  const graphic = smoothstep(15.4, 17.2, screen);
-  table.visible = graphic < 0.9;
-  plinth.visible = graphic < 0.9;
+  const studio = screen < 14.62;
+  table.visible = studio;
+  plinth.visible = studio;
   cyc.visible = true;
-  if (screen >= 16.8) {
+  if (screen >= 15.4) {
     base.visible = false;
     stem.visible = false;
+  } else {
+    base.visible = true;
+    stem.visible = true;
   }
   camera.up.set(0, 1, 0);
 
   if (screen >= 14.5) {
-    const u = smoothstep(14.5, 17.6, screen);
-    const fromP = g.clone().addScaledVector(v, -0.48).addScaledVector(side, 0.05);
-    fromP.y = g.y + 0.02;
+    const u = smoothstep(14.55, 16.15, screen);
+    const fromP = g.clone().addScaledVector(v, -0.28).addScaledVector(side, 0.045);
+    fromP.y = g.y + 0.012;
     const fromL = g.clone();
     const endFov = 47.2;
     const d = (page.h * 1.04) / (2 * Math.tan((endFov * Math.PI) / 360));
     const toP = new THREE.Vector3(page.x, page.y, page.z + d);
     const toL = new THREE.Vector3(page.x, page.y, page.z);
     camera.position.lerpVectors(fromP, toP, u);
-    const look = fromL.lerp(toL, u);
-    camera.fov = lerp(30, endFov, u);
+    const look = fromL.clone().lerp(toL, u);
+    camera.fov = lerp(28, endFov, u);
     camera.lookAt(look);
     camera.updateProjectionMatrix();
     return;
   }
 
-  if (screen < 1.25) {
+  const throwCam = () => {
     const rel = holdPosition(W_RELEASE);
     const cam = new THREE.Vector3(rel.x, rel.y - 0.18, rel.z);
     cam.addScaledVector(v, -0.82);
     cam.addScaledVector(side, 0.14);
     const look = new THREE.Vector3(rel.x, rel.y + 0.05, rel.z).addScaledVector(v, 0.5);
-    camera.fov = 46;
-    camera.position.copy(cam);
-    camera.lookAt(look);
-  } else if (screen < 11.05) {
-    const u = smoothstep(1.25, 10.6, screen);
+    return { cam, look, fov: 46 };
+  };
+  const trackCam = (tScreen) => {
+    const u = smoothstep(1.25, 10.6, Math.max(tScreen, 1.25));
     const along = b.clone().lerp(g, 0.42);
     const dist = lerp(0.72, 0.32, u);
     const cam = along.clone().addScaledVector(v, -dist).addScaledVector(side, lerp(0.14, 0.04, u));
     cam.y = lerp(along.y - 0.04, g.y - 0.012, u);
-    camera.fov = lerp(40, 26, u);
-    camera.position.copy(cam);
-    camera.lookAt(b.clone().lerp(g, lerp(0.32, 0.58, u)));
+    const look = b.clone().lerp(g, lerp(0.32, 0.58, u));
+    return { cam, look, fov: lerp(40, 26, u) };
+  };
+
+  if (screen < 11.05) {
+    const thr = throwCam();
+    const trk = trackCam(screen);
+    const t = smoothstep(1.08, 1.72, screen);
+    camera.position.lerpVectors(thr.cam, trk.cam, t);
+    camera.fov = lerp(thr.fov, trk.fov, t);
+    camera.lookAt(thr.look.clone().lerp(trk.look, t));
   } else {
     const cam = g.clone().addScaledVector(v, -0.28).addScaledVector(side, 0.045);
     cam.y = g.y + 0.012;
@@ -756,32 +768,56 @@ function updateScene(screen) {
 }
 
 function samplesFor(screen) {
-  if (screen < 0.02) return 4;
+  // O antebraço percorre muito pixel no obturador. Poucos passes viram faixas.
+  if (screen < 0.02) return 8;
+  if (screen < 0.25) return 64;
   if (screen < 0.48) return 8;
   if (screen < 1.05) return 3;
   return 1;
 }
 
+const blurAcc = new Float32Array(W * H * 3);
+const blurRead = document.createElement("canvas");
+blurRead.width = W;
+blurRead.height = H;
+const blurCtx = blurRead.getContext("2d", { willReadFrequently: true, alpha: false });
+
 function renderFrame(n) {
   const samples = samplesFor(n / FPS);
+  const shutter = samples === 1 ? 0 : 0.5;
   ctx2.setTransform(1, 0, 0, 1, 0, 0);
   ctx2.globalCompositeOperation = "source-over";
   ctx2.globalAlpha = 1;
-  ctx2.fillStyle = "#000000";
-  ctx2.fillRect(0, 0, W, H);
-  const shutter = samples === 1 ? 0 : 0.5;
-  for (let i = 0; i < samples; i++) {
-    const sub = samples === 1 ? 0 : ((i + 0.5) / samples - 0.5) * shutter;
-    updateScene((n + sub) / FPS);
+  if (samples === 1) {
+    updateScene(n / FPS);
     renderer.render(scene, camera);
-    // Média incremental em source-over: o passe i entra com alfa 1/(i+1),
-    // o que dá peso igual 1/n sobre o preto. Nunca "lighter" — soma e estoura.
-    ctx2.globalCompositeOperation = "source-over";
-    ctx2.globalAlpha = 1 / (i + 1);
     ctx2.drawImage(glCanvas, 0, 0, W, H);
+  } else {
+    blurAcc.fill(0);
+    for (let i = 0; i < samples; i++) {
+      const sub = ((i + 0.5) / samples - 0.5) * shutter;
+      updateScene((n + sub) / FPS);
+      renderer.render(scene, camera);
+      blurCtx.drawImage(glCanvas, 0, 0, W, H);
+      const pix = blurCtx.getImageData(0, 0, W, H).data;
+      for (let p = 0, q = 0; p < pix.length; p += 4, q += 3) {
+        blurAcc[q] += pix[p];
+        blurAcc[q + 1] += pix[p + 1];
+        blurAcc[q + 2] += pix[p + 2];
+      }
+    }
+    const out = blurCtx.createImageData(W, H);
+    const d = out.data;
+    const inv = 1 / samples;
+    for (let p = 0, q = 0; p < d.length; p += 4, q += 3) {
+      d[p] = blurAcc[q] * inv + 0.5;
+      d[p + 1] = blurAcc[q + 1] * inv + 0.5;
+      d[p + 2] = blurAcc[q + 2] * inv + 0.5;
+      d[p + 3] = 255;
+    }
+    blurCtx.putImageData(out, 0, 0);
+    ctx2.drawImage(blurRead, 0, 0, W, H);
   }
-  ctx2.globalAlpha = 1;
-  ctx2.globalCompositeOperation = "source-over";
   const b = ball.position;
   const gp = gapWorld();
   return { screen: n / FPS, ball: [b.x, b.y, b.z], gap: gp, samples };
