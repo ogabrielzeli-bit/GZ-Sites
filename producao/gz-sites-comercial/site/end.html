@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>GZ Sites — assinatura</title>
+<style>
+@font-face{font-family:Archivo;src:url(fonts/archivo.woff2) format("woff2");font-weight:100 900;font-display:block}
+@font-face{font-family:Newsreader;src:url(fonts/newsreader-italic.woff2) format("woff2");font-weight:200 800;font-style:italic;font-display:block}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/plex-400.woff2) format("woff2");font-weight:400;font-display:block}
+html,body{margin:0;background:#111413}
+#c{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const W = Number(new URLSearchParams(location.search).get("w") || 1080);
+const H = Number(new URLSearchParams(location.search).get("h") || 1920);
+const canvas = document.getElementById("c");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const paper = "#E4E5E0";
+const accent = "#0B6F66";
+const ink = "#111413";
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function smooth(a,b,x){const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);}
+
+function draw(frame){
+  const t = frame / 30;
+  ctx.fillStyle = ink;
+  ctx.fillRect(0,0,W,H);
+  const g = ctx.createRadialGradient(W/2, H*0.46, 80, W/2, H*0.48, 900);
+  g.addColorStop(0, "#1a1e1c");
+  g.addColorStop(1, ink);
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+
+  const drawG = smooth(25.55, 26.45, t);
+  const drawZ = smooth(26.2, 27.05, t);
+  const dot = smooth(26.9, 27.2, t);
+  const name = smooth(27.1, 27.6, t);
+  const line = smooth(27.5, 28.1, t);
+  const url = smooth(28.05, 28.6, t);
+
+  ctx.save();
+  ctx.translate(W/2, 760);
+  ctx.lineWidth = 10;
+  ctx.lineCap = "square";
+  ctx.lineJoin = "miter";
+  ctx.strokeStyle = paper;
+  // G geométrico: ~300° no sentido horário, vão à direita, barra no vão
+  const g0 = -0.55;
+  const gSweep = -(Math.PI * 2 - 1.05);
+  if (drawG > 0) {
+    ctx.beginPath();
+    ctx.arc(-78, 0, 58, g0, g0 + gSweep * drawG, true);
+    ctx.stroke();
+    const bar = clamp((drawG - 0.72) / 0.28, 0, 1);
+    if (bar > 0) {
+      ctx.beginPath();
+      ctx.moveTo(-78, 0);
+      ctx.lineTo(-78 + 62 * bar, 0);
+      ctx.stroke();
+    }
+  }
+  // Z em três segmentos, da esquerda para a direita
+  const zPts = [[28, -52], [118, -52], [28, 52], [118, 52]];
+  const segLen = [90, Math.hypot(90, 104), 90];
+  const total = segLen[0] + segLen[1] + segLen[2];
+  if (drawZ > 0) {
+    let remain = drawZ * total;
+    ctx.beginPath();
+    ctx.moveTo(zPts[0][0], zPts[0][1]);
+    for (let i = 0; i < 3; i++) {
+      const a = zPts[i], b = zPts[i + 1];
+      const take = Math.min(segLen[i], remain);
+      const u = take / segLen[i];
+      ctx.lineTo(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u);
+      remain -= take;
+      if (remain <= 0) break;
+    }
+    ctx.stroke();
+  }
+  if (dot > 0) {
+    ctx.globalAlpha = dot;
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(-78 + 54, 0, 5.5 * (0.65 + 0.35 * dot), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = paper;
+  ctx.globalAlpha = name;
+  ctx.font = "600 64px Archivo, sans-serif";
+  ctx.fillText("GZ Sites", W/2, 960 + (1 - name) * 14);
+  ctx.globalAlpha = line;
+  ctx.fillStyle = "#d5d8d1";
+  ctx.font = "italic 500 40px Newsreader, serif";
+  ctx.fillText("Sites feitos para chamar atenção.", W/2, 1048 + (1 - line) * 12);
+  ctx.globalAlpha = url;
+  ctx.fillStyle = accent;
+  ctx.font = "400 30px 'IBM Plex Mono', monospace";
+  ctx.fillText("gzsites.com.br", W/2, 1148);
+  ctx.globalAlpha = 1;
+}
+
+window.renderFrame = (n) => { draw(n); return { frame: n }; };
+document.fonts.ready.then(() => { draw(800); window.__ready = true; });
+</script>
+</body>
+</html>

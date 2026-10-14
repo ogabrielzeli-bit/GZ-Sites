@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>GZ Sites — página do filme</title>
+<style>
+@font-face{font-family:Archivo;src:url(fonts/archivo.woff2) format("woff2");font-weight:100 900;font-display:block}
+@font-face{font-family:Newsreader;src:url(fonts/newsreader.woff2) format("woff2");font-weight:200 800;font-display:block}
+@font-face{font-family:Newsreader;src:url(fonts/newsreader-italic.woff2) format("woff2");font-weight:200 800;font-style:italic;font-display:block}
+@font-face{font-family:"Schibsted Grotesk";src:url(fonts/schibsted.woff2) format("woff2");font-weight:400 900;font-display:block}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/plex-400.woff2) format("woff2");font-weight:400;font-display:block}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/plex-500.woff2) format("woff2");font-weight:500;font-display:block}
+html,body{margin:0;background:#100f0d;overflow:hidden}
+#c{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const params = new URLSearchParams(location.search);
+const W = Number(params.get("w") || 1080);
+const H = Number(params.get("h") || 1920);
+const canvas = document.getElementById("c");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function lerp(a,b,t){return a+(b-a)*t;}
+function smooth(a,b,x){const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);}
+function ease(t){return t*t*(3-2*t);}
+
+const ink = "#111413";
+const paper = "#E4E5E0";
+const mute = "#5c6560";
+const accent = "#0B6F66";
+const line = "rgba(228,229,224,0.86)";
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function draw(frame){
+  const t = frame / 30;
+  const reveal = smooth(19.2, 20.15, t);
+  const typeIn = smooth(19.55, 20.45, t);
+  const scroll = ease(smooth(21.1, 24.2, t));
+  const drift = Math.sin(t * 0.7) * 6;
+  const yOff = scroll * 168;
+
+  ctx.fillStyle = "#100f0d";
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.translate(0, -yOff);
+
+  const mx = W * 0.08;
+  const mw = W * 0.84;
+
+  // painéis que nascem do fio
+  const panels = [
+    { y: 0.15, h: 0.25, delay: 0 },
+    { y: 0.45, h: 0.19, delay: 0.08 },
+  ];
+  panels.forEach((p) => {
+    const u = clamp((reveal - p.delay) / 0.7, 0, 1);
+    const e = ease(u);
+    if (e <= 0) return;
+    ctx.globalAlpha = e;
+    ctx.fillStyle = paper;
+    ctx.fillRect(mx, H * p.y, mw, H * p.h);
+    ctx.globalAlpha = 1;
+  });
+
+  // fios — os mesmos do plano 3D
+  ctx.strokeStyle = reveal > 0.55 ? "rgba(17,20,19,0.28)" : line;
+  ctx.lineWidth = 2;
+  const wires = [
+    [0.078, 0.078],
+    [0.15, 0.15], [0.4, 0.4],
+    [0.45, 0.45], [0.64, 0.64],
+    [0.71, 0.71], [0.79, 0.79], [0.87, 0.87],
+  ];
+  ctx.globalAlpha = lerp(1, 0.0, smooth(19.85, 20.55, t));
+  wires.forEach(([y1]) => {
+    ctx.beginPath();
+    ctx.moveTo(mx, H * y1);
+    ctx.lineTo(mx + mw, H * y1);
+    ctx.stroke();
+  });
+  // verticais dos blocos
+  [[0.15, 0.4], [0.45, 0.64]].forEach(([a, b]) => {
+    ctx.beginPath(); ctx.moveTo(mx, H*a); ctx.lineTo(mx, H*b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(mx+mw, H*a); ctx.lineTo(mx+mw, H*b); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+
+  // marca
+  const navA = typeIn;
+  ctx.globalAlpha = navA;
+  ctx.fillStyle = paper;
+  ctx.font = "700 34px Archivo, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText("GZ", mx, H * 0.078);
+  const gzW = ctx.measureText("GZ").width;
+  ctx.fillStyle = accent;
+  ctx.fillText(".", mx + gzW - 2, H * 0.078);
+  ctx.fillStyle = paper;
+  ctx.font = "500 34px Archivo, sans-serif";
+  ctx.fillText("sites", mx + gzW + 8, H * 0.078);
+  ctx.textAlign = "left";
+  ctx.globalAlpha = 1;
+
+  // eyebrow + headline inside hero
+  const heroY = H * 0.15;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(mx, heroY, mw, H * 0.25);
+  ctx.clip();
+  const lines = [
+    { text: "CRIAÇÃO DE SITES", font: "500 22px 'IBM Plex Mono', monospace", color: accent, y: 54, a: smooth(19.4, 19.9, t) },
+  ];
+  ctx.globalAlpha = lines[0].a;
+  ctx.fillStyle = accent;
+  ctx.font = lines[0].font;
+  ctx.fillText("GZ.SITES", mx + 36, heroY + 58);
+  // rule
+  const rule = smooth(19.55, 20.3, t);
+  ctx.fillStyle = accent;
+  ctx.fillRect(mx + 36, heroY + 78, (mw - 72) * rule, 2);
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = ink;
+  ctx.font = "460 78px Newsreader, serif";
+  const h1 = smooth(19.55, 20.25, t);
+  const h2 = smooth(19.8, 20.5, t);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(mx, heroY + 96, mw * h1, 90);
+  ctx.clip();
+  ctx.fillText("O olhar chega.", mx + 36, heroY + 168);
+  ctx.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(mx, heroY + 186, mw * h2, 100);
+  ctx.clip();
+  ctx.fillText("E permanece.", mx + 36, heroY + 258);
+  ctx.restore();
+
+  ctx.globalAlpha = smooth(20.05, 20.7, t);
+  ctx.fillStyle = mute;
+  ctx.font = "460 30px 'Schibsted Grotesk', sans-serif";
+  wrap(ctx, "Uma página com hierarquia, tipo e movimento no mesmo eixo.", mx + 36, heroY + 330, mw - 72, 40);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // painel visual original — sem foto de terceiros
+  const mediaY = H * 0.45;
+  const mediaH = H * 0.19;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(mx, mediaY, mw, mediaH);
+  ctx.clip();
+  const mediaA = smooth(19.7, 20.4, t);
+  if (mediaA > 0) {
+    ctx.globalAlpha = mediaA;
+    ctx.fillStyle = "#d7d9d2";
+    ctx.fillRect(mx, mediaY, mw, mediaH);
+    // composição geométrica própria
+    const shift = drift + scroll * 30;
+    ctx.fillStyle = ink;
+    roundRect(mx + 48, mediaY + 36, 210, mediaH - 72, 28);
+    ctx.fill();
+    ctx.fillStyle = paper;
+    ctx.fillRect(mx + 78, mediaY + 70 + shift * 0.05, 150, 10);
+    ctx.fillRect(mx + 78, mediaY + 92 + shift * 0.05, 110, 8);
+    ctx.fillStyle = accent;
+    ctx.fillRect(mx + 78, mediaY + mediaH - 110, 64, 8);
+    // colunas
+    ctx.globalAlpha = mediaA * 0.9;
+    for (let i = 0; i < 3; i++) {
+      const x = mx + 300 + i * 175;
+      ctx.fillStyle = i === 1 ? ink : "#c5c8c0";
+      roundRect(x, mediaY + 48 + (i === 1 ? -8 : 0), 150, mediaH - 96, 8);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  const rows = [
+    ["01", "Estrutura", "O que se lê primeiro, e o que espera."],
+    ["02", "Tipo", "Uma voz para o título. Outra para o texto."],
+    ["03", "Movimento", "Cada deslocamento tem um motivo."],
+  ];
+  rows.forEach((row, i) => {
+    const y = H * (0.71 + i * 0.08);
+    const a = smooth(20.3 + i * 0.18, 20.9 + i * 0.18, t);
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = "rgba(17,20,19,0.18)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(mx, y);
+    ctx.lineTo(mx + mw, y);
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    ctx.font = "500 22px 'IBM Plex Mono', monospace";
+    ctx.fillText(row[0], mx, y + 48);
+    ctx.fillStyle = paper;
+    ctx.font = "600 40px Archivo, sans-serif";
+    ctx.fillText(row[1], mx + 92, y + 50);
+    ctx.fillStyle = "#C5CAC2";
+    ctx.font = "450 26px 'Schibsted Grotesk', sans-serif";
+    ctx.fillText(row[2], mx + 92, y + 92);
+    const bar = smooth(21.4 + i * 0.35, 22.1 + i * 0.35, t);
+    ctx.fillStyle = accent;
+    ctx.fillRect(mx, y + H * 0.075, mw * bar * 0.18, 2);
+    ctx.globalAlpha = 1;
+  });
+
+  ctx.restore();
+
+  // escurece de leve no handoff, sem esmagar
+  const dim = smooth(24.7, 25.45, t);
+  if (dim > 0) {
+    ctx.fillStyle = `rgba(17,20,19,${dim * 0.45})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function wrap(ctx, text, x, y, max, lh) {
+  const words = text.split(" ");
+  let line = "";
+  let yy = y;
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > max) {
+      ctx.fillText(line, x, yy);
+      line = w;
+      yy += lh;
+    } else line = test;
+  }
+  ctx.fillText(line, x, yy);
+}
+
+function waitFonts() {
+  return document.fonts.ready;
+}
+window.renderFrame = (n) => { draw(n); return { frame: n }; };
+window.__ready = false;
+waitFonts().then(() => {
+  draw(560);
+  window.__ready = true;
+});
+</script>
+</body>
+</html>
